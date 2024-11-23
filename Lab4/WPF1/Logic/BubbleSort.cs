@@ -1,4 +1,7 @@
-﻿namespace WPF1.Logic
+﻿using System;
+using System.Threading;
+
+namespace WPF1.Logic
 {
     public class BubbleSort : ISortingAlgorithm
     {
@@ -9,7 +12,7 @@
         public void Sort(int[] array, int delay)
         {
             int n = array.Length;
-            int[] finalized = new int[array.Length]; // Массив для отслеживания завершённых элементов
+            int[] finalized = new int[array.Length];
 
             for (int i = 0; i < n - 1; i++)
             {
@@ -17,30 +20,37 @@
 
                 for (int j = 0; j < n - i - 1; j++)
                 {
-                    // Сравнение элементов
+                    // Сравниваем элементы
                     OnComparison?.Invoke(j, j + 1, $"Сравниваем: {array[j]} и {array[j + 1]}");
+                    // Добавляем пробел между сообщениями
+                    OnComparison?.Invoke(-1, -1, ""); // Передаем пустую строку, чтобы обработать пробел
+
                     Thread.Sleep(delay);
 
                     if (array[j] > array[j + 1])
                     {
-                        // Перестановка
-                        OnComparison?.Invoke(j, j + 1, $"{array[j]} > {array[j + 1]}. Меняем местами");
+                        // Меняем местами элементы, если первый больше второго
                         (array[j], array[j + 1]) = (array[j + 1], array[j]);
                         swapped = true;
 
-                        OnStepCompleted?.Invoke((int[])array.Clone()); // Обновляем массив
+                        // Событие вызывается только после изменения массива
+                        OnStepCompleted?.Invoke((int[])array.Clone());
                     }
 
-                    Thread.Sleep(delay);
+                    // Никакого дополнительного вызова OnComparison здесь нет
                 }
 
-                // Помечаем элемент, который завершил участие
+                // Помечаем элемент как завершённый
                 finalized[n - i - 1] = 1;
                 OnFinalizedElements?.Invoke((int[])finalized.Clone());
                 Thread.Sleep(delay);
+
+                // Если обменов не было, массив уже отсортирован
+                if (!swapped)
+                    break;
             }
 
-            // Обновляем все элементы как завершённые после завершения сортировки
+            // Помечаем все элементы как завершённые
             for (int i = 0; i < n; i++)
             {
                 finalized[i] = 1;

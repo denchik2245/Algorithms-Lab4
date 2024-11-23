@@ -2,10 +2,10 @@
 {
     public interface ISortingAlgorithm
     {
-        event Action<int[]> OnStepCompleted; // Событие для обновления массива
-        event Action<int, int, string> OnComparison; // Событие для сравнения элементов
-        event Action<int[]> OnFinalizedElements; // Событие для завершённых элементов
+        event Action<int[]> OnStepCompleted;
+        event Action<int, int, string> OnComparison;
+        event Action<int[]> OnFinalizedElements;
 
-        void Sort(int[] array, int delay); // Метод сортировки
+        void Sort(int[] array, int delay);
     }
 }
