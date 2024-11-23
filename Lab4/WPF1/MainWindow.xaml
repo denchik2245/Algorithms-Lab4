@@ -5,6 +5,7 @@
         Title="4 лабораторная" Width="1300" Height="900">
 
     <Window.Resources>
+        <!-- Стиль для кастомной кнопки -->
         <Style x:Key="CustomButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#478ECC" />
             <Setter Property="Foreground" Value="White" />
@@ -32,6 +33,77 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Стиль для элементов массива с анимациями -->
+        <Style x:Key="NumberItemStyle" TargetType="Border">
+            <!-- Устанавливаем начальный фон как SolidColorBrush -->
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="White" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Width" Value="70" />
+            <Setter Property="Height" Value="70" />
+            <Setter Property="BorderBrush" Value="Black" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="2" />
+
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform X="0" />
+                </Setter.Value>
+            </Setter>
+
+            <Style.Triggers>
+                <!-- Триггер для свойства IsComparing -->
+                <DataTrigger Binding="{Binding IsComparing}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="Background.Color"
+                                    To="LightGoldenrodYellow"
+                                    Duration="0:0:0.3" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="Background.Color"
+                                    To="White"
+                                    Duration="0:0:0.3" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+
+                <!-- Триггер для свойства IsFinalized -->
+                <DataTrigger Binding="{Binding IsFinalized}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="Background.Color"
+                                    To="LightGreen"
+                                    Duration="0:0:0.5" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="Background.Color"
+                                    To="White"
+                                    Duration="0:0:0.5" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Background="White">
@@ -58,30 +130,26 @@
             </lvc:CartesianChart>
 
             <!-- Поле для отрисовки массива -->
-            <ItemsControl x:Name="ArrayDisplay" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="10">
+            <ItemsControl x:Name="ArrayDisplay" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="10" 
+                          ItemsSource="{Binding Numbers}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Margin" Value="2" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border x:Name="border" Width="70" Height="70" BorderBrush="Black" BorderThickness="1" Margin="2" Background="White">
+                        <Border Style="{StaticResource NumberItemStyle}">
                             <Border.RenderTransform>
                                 <TranslateTransform X="{Binding XOffset}" />
                             </Border.RenderTransform>
                             <TextBlock Text="{Binding Value}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" />
                         </Border>
-                        <DataTemplate.Triggers>
-                            <!-- Триггер для сравниваемых элементов -->
-                            <DataTrigger Binding="{Binding IsComparing}" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="LightYellow"/>
-                            </DataTrigger>
-                            <!-- Триггер для завершённых элементов -->
-                            <DataTrigger Binding="{Binding IsFinalized}" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="LightGreen"/>
-                            </DataTrigger>
-                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -160,4 +228,3 @@
         </Border>
     </Grid>
 </Window>
-

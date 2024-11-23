@@ -7,7 +7,7 @@ namespace WPF1
         private int _value;
         private bool _isFinalized;
         private bool _isComparing;
-        private double _xOffset; // Добавлено свойство для смещения по оси X
+        private double _xOffset; // Свойство для смещения по оси X
 
         public int Value
         {
@@ -48,7 +48,7 @@ namespace WPF1
             }
         }
 
-        // Новое свойство для управления смещением по оси X
+        // Свойство для управления смещением по оси X
         public double XOffset
         {
             get => _xOffset;

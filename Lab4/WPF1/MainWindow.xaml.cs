@@ -33,7 +33,7 @@ namespace WPF1
 
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedAlgorithm = TaskSelector.Text;
+            string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
             if (string.IsNullOrEmpty(selectedAlgorithm))
             {
                 MessageBox.Show("Пожалуйста, выберите алгоритм сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -50,6 +50,7 @@ namespace WPF1
             {
                 item.IsFinalized = false;
                 item.IsComparing = false;
+                item.XOffset = 0;
             }
 
             sortingAlgorithm = selectedAlgorithm switch
@@ -67,7 +68,10 @@ namespace WPF1
             {
                 int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
                 sortingAlgorithm.Sort(arrayToSort, delay);
-            });
+            })
+            {
+                IsBackground = true
+            };
             sortingThread.Start();
         }
 
@@ -84,84 +88,71 @@ namespace WPF1
         
         private async void ShowComparison(int index1, int index2, string message)
         {
-            // Проверяем индексы на корректность
             if (index1 < 0 || index1 >= numbers.Count || index2 < 0 || index2 >= numbers.Count)
             {
-                // Если индексы некорректные, просто выходим из метода
                 return;
             }
-
-            // Подсветка текущих элементов для сравнения
+            
             await Dispatcher.InvokeAsync(() =>
             {
-                // Сбрасываем подсветку всех элементов
                 foreach (var item in numbers)
                 {
                     item.IsComparing = false;
                 }
-
-                // Убедимся, что индексы находятся в пределах списка
+                
                 if (index1 >= 0 && index1 < numbers.Count)
                     numbers[index1].IsComparing = true;
                 if (index2 >= 0 && index2 < numbers.Count)
                     numbers[index2].IsComparing = true;
-
-                // Выводим сообщение о сравнении
+                
                 OutputTextBox.AppendText($"{message}\n");
                 OutputTextBox.ScrollToEnd();
             });
-
-            // Задержка для визуализации подсветки
+            
             await Task.Delay(300);
-
-            // Проверяем, нужно ли менять местами
+            
             if (numbers[index1].Value > numbers[index2].Value)
             {
-                // Выводим сообщение о смене мест
                 await Dispatcher.InvokeAsync(() =>
                 {
                     OutputTextBox.AppendText($"{numbers[index1].Value} > {numbers[index2].Value}. Меняем местами\n");
                 });
-
-                // Выполняем анимацию перемещения
+                
                 await AnimateSwap(index1, index2);
             }
             else
             {
-                // Если элементы остаются на местах
                 await Dispatcher.InvokeAsync(() =>
                 {
                     OutputTextBox.AppendText($"{numbers[index1].Value} < {numbers[index2].Value}. Остаются на местах\n");
                 });
             }
-
-            // Добавляем пробел только после завершения блока обработки
+            
             await Dispatcher.InvokeAsync(() =>
             {
                 OutputTextBox.AppendText("\n");
             });
-
-            // Сбрасываем подсветку текущих элементов перед переходом к следующей паре
+            
             await Dispatcher.InvokeAsync(() =>
             {
                 numbers[index1].IsComparing = false;
                 numbers[index2].IsComparing = false;
             });
-
-            // Задержка перед следующим шагом алгоритма
+            
             await Task.Delay(delay);
         }
 
         private async Task AnimateSwap(int index1, int index2)
         {
-            const double itemWidth = 74;
-            double duration = 0.5;
+            const double itemWidth = 77;
+            double animationDurationSeconds = 0.5;
 
             FrameworkElement container1 = null;
             FrameworkElement container2 = null;
             Border border1 = null;
             Border border2 = null;
 
+            // Получаем элементы для анимации
             await Dispatcher.InvokeAsync(() =>
             {
                 container1 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index1) as FrameworkElement;
@@ -178,42 +169,62 @@ namespace WPF1
 
             await Dispatcher.InvokeAsync(() =>
             {
-                border1.RenderTransform = new TranslateTransform();
-                border2.RenderTransform = new TranslateTransform();
+                if (!(border1.RenderTransform is TranslateTransform))
+                {
+                    border1.RenderTransform = new TranslateTransform();
+                }
+                if (!(border2.RenderTransform is TranslateTransform))
+                {
+                    border2.RenderTransform = new TranslateTransform();
+                }
 
+                TranslateTransform tt1 = (TranslateTransform)border1.RenderTransform;
+                TranslateTransform tt2 = (TranslateTransform)border2.RenderTransform;
+                
                 DoubleAnimation animation1 = new DoubleAnimation
                 {
                     To = itemWidth,
-                    Duration = TimeSpan.FromSeconds(duration),
-                    EasingFunction = new QuadraticEase()
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
                 };
 
                 DoubleAnimation animation2 = new DoubleAnimation
                 {
                     To = -itemWidth,
-                    Duration = TimeSpan.FromSeconds(duration),
-                    EasingFunction = new QuadraticEase()
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
                 };
-
-                border1.RenderTransform.BeginAnimation(TranslateTransform.XProperty, animation1);
-                border2.RenderTransform.BeginAnimation(TranslateTransform.XProperty, animation2);
+                
+                tt1.BeginAnimation(TranslateTransform.XProperty, animation1);
+                tt2.BeginAnimation(TranslateTransform.XProperty, animation2);
             });
-
-            await Task.Delay((int)(duration * 1000));
+            
+            await Task.Delay((int)(animationDurationSeconds * 1000));
 
             await Dispatcher.InvokeAsync(() =>
             {
                 int temp = numbers[index1].Value;
                 numbers[index1].Value = numbers[index2].Value;
                 numbers[index2].Value = temp;
+                
+                if (border1.RenderTransform is TranslateTransform tt1)
+                {
+                    tt1.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt1.X = 0;
+                }
 
-                border1.RenderTransform = new TranslateTransform();
-                border2.RenderTransform = new TranslateTransform();
+                if (border2.RenderTransform is TranslateTransform tt2)
+                {
+                    tt2.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt2.X = 0;
+                }
             });
         }
-
+        
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
+            if (parent == null) return null;
+
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
@@ -247,4 +258,3 @@ namespace WPF1
         }
     }
 }
-
