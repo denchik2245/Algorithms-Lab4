@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -17,6 +18,9 @@ namespace WPF1
         private bool isPaused = false;
         private bool isSortingStarted = false;
         private Thread sortingThread;
+        private string countryFilePath = "Resources/Country.txt";
+        private string outputFilePath = "Resources/SortedCountries.txt";
+        private CountrySorter countrySorter;
 
         public MainWindow()
         {
@@ -25,6 +29,86 @@ namespace WPF1
             DataContext = this;
         }
 
+        private readonly List<string> TextSortingTasks = new List<string>
+        {
+            "Сортировка текста (100 слов)",
+            "Сортировка текста (500 слов)",
+            "Сортировка текста (1000 слов)",
+            "Сортировка текста (2000 слов)",
+            "Сортировка текста (5000 слов)"
+        };
+
+        
+        private void TaskSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return; // Проверяем, загружено ли окно
+
+            string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+
+            if (TextSortingTasks.Contains(selectedTask))
+            {
+                // Если выбрана задача сортировки текста
+
+                // Скрываем ненужные панели
+                ArrayDisplay.Visibility = Visibility.Collapsed;
+                StopButton.Visibility = Visibility.Collapsed;
+                DelayInputPanel.Visibility = Visibility.Collapsed;
+                ArrayInputPanel.Visibility = Visibility.Collapsed;
+
+                // Показываем необходимые панели
+                CustomFilePathPanel.Visibility = Visibility.Visible;
+                AlgorithmSelectorPanel.Visibility = Visibility.Visible;
+
+                // Скрываем другие специфичные панели, если есть
+                ContinentPanel.Visibility = Visibility.Collapsed;
+                AttributePanel.Visibility = Visibility.Collapsed;
+
+                // Отображаем OutputTextBox для вывода результатов
+                OutputTextBox.Visibility = Visibility.Visible;
+            }
+            else if (selectedTask == "Сведения о государствах")
+            {
+                // Если выбрана задача "Сведения о государствах"
+
+                // Скрываем панели сортировки текста
+                ArrayDisplay.Visibility = Visibility.Collapsed;
+                StopButton.Visibility = Visibility.Collapsed;
+                DelayInputPanel.Visibility = Visibility.Collapsed;
+                ArrayInputPanel.Visibility = Visibility.Collapsed;
+                CustomFilePathPanel.Visibility = Visibility.Collapsed;
+                AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
+
+                // Показываем специфичные для этой задачи панели
+                ContinentPanel.Visibility = Visibility.Visible;
+                AttributePanel.Visibility = Visibility.Visible;
+
+                // Отображаем OutputTextBox для вывода результатов
+                OutputTextBox.Visibility = Visibility.Visible;
+                OutputTextBox.Height = 700;
+            }
+            else
+            {
+                // Для других задач (например, сортировка чисел)
+
+                // Показываем стандартные панели
+                ArrayInputPanel.Visibility = Visibility.Visible;
+                DelayInputPanel.Visibility = Visibility.Visible;
+                ArrayDisplay.Visibility = Visibility.Visible;
+                StopButton.Visibility = Visibility.Visible;
+
+                // Скрываем специфичные для других задач панели
+                CustomFilePathPanel.Visibility = Visibility.Collapsed;
+                AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
+                ContinentPanel.Visibility = Visibility.Collapsed;
+                AttributePanel.Visibility = Visibility.Collapsed;
+
+                // Отображаем OutputTextBox для вывода результатов
+                OutputTextBox.Visibility = Visibility.Visible;
+                OutputTextBox.Height = 600;
+            }
+        }
+
+        
         //Считывание чисел
         private void LoadArrayFromFile(string filePath)
         {
@@ -67,76 +151,149 @@ namespace WPF1
             }
         }
         
+        private void StartTextSorting()
+        {
+            string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+
+            // Определение пути к файлу
+            string defaultFilePath = selectedTask switch
+            {
+                "Сортировка текста (100 слов)" => "Resources/Text_100.txt",
+                "Сортировка текста (500 слов)" => "Resources/Text_500.txt",
+                "Сортировка текста (1000 слов)" => "Resources/Text_1000.txt",
+                "Сортировка текста (2000 слов)" => "Resources/Text_2000.txt",
+                "Сортировка текста (5000 слов)" => "Resources/Text_5000.txt",
+                _ => throw new NotImplementedException("Выбранная задача сортировки текста не поддерживается.")
+            };
+
+            string customFilePath = CustomFilePathTextBox.Text.Trim();
+            string filePath = string.IsNullOrEmpty(customFilePath) ? defaultFilePath : customFilePath;
+
+            if (!File.Exists(filePath))
+            {
+                MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Получение выбранного алгоритма
+            string selectedAlgorithm = BaseAlgorithmRadioButton.IsChecked == true ? "Базовый или усовершенствованный" :
+                                       RadixSortRadioButton.IsChecked == true ? "Radix сортировка" : "QuickSort";
+
+            try
+            {
+                WordSorter sorter = new WordSorter();
+                var sortedWordsWithCounts = sorter.SortWords(filePath, selectedAlgorithm);
+
+                // Формирование строки для отображения
+                StringBuilder sb = new StringBuilder();
+                foreach (var (Word, Count) in sortedWordsWithCounts)
+                {
+                    sb.AppendLine($"{Word} (Встречалось {Count} {GetRussianPlural(Count)})");
+                }
+
+                OutputTextBox.Text = sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сортировке: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Метод для правильного склонения слова "раз"
+        private string GetRussianPlural(int count)
+        {
+            if (count % 10 == 1 && count % 100 != 11)
+                return "раз";
+            else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20))
+                return "раза";
+            else
+                return "раз";
+        }
+        
         //Кнопка "Начать"
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            if (isPaused && isSortingStarted)
+            string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+
+            if (selectedTask == "Сведения о государствах")
             {
-                isPaused = false;
-                ResumeSorting();
-                return;
+                StartCountrySorting();
             }
-            
-            if (!isSortingStarted)
+            else if (selectedTask.StartsWith("Сортировка текста"))
             {
-                string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
-                if (string.IsNullOrEmpty(selectedAlgorithm))
-                {
-                    MessageBox.Show("Пожалуйста, выберите алгоритм сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                if (!int.TryParse(DelayTextBox.Text, out delay) || delay < 500)
-                {
-                    MessageBox.Show("Введите корректное значение задержки (минимум 500 мс).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                ResetArrayVisuals();
-
-                sortingAlgorithm = selectedAlgorithm switch
-                {
-                    "BubbleSort" => new BubbleSort(),
-                    "QuickSort" => new QuickSort(),
-                    _ => throw new NotImplementedException("Алгоритм не реализован.")
-                };
-                
-                sortingAlgorithm.OnStepCompleted += UpdateArray;
-                sortingAlgorithm.OnComparison += ShowComparison;
-                sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
-                sortingAlgorithm.SortingCompleted += OnSortingCompleted;
-
-                isSortingStarted = true;
-                
-                sortingThread = new Thread(() =>
-                {
-                    try
-                    {
-                        int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
-                        sortingAlgorithm.Sort(arrayToSort, delay);
-                    }
-                    catch (Exception ex)
-                    {
-                        Dispatcher.Invoke(() =>
-                            MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
-                    }
-                })
-                {
-                    IsBackground = true
-                };
-                sortingThread.Start();
+                StartTextSorting();
             }
             else
             {
-                var result = MessageBox.Show("Сортировка уже запущена. Хотите начать заново?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
+                if (isPaused && isSortingStarted)
                 {
-                    StopCurrentSorting();
+                    isPaused = false;
+                    ResumeSorting();
+                    return;
+                }
+            
+                if (!isSortingStarted)
+                {
+                    string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+                    if (string.IsNullOrEmpty(selectedAlgorithm))
+                    {
+                        MessageBox.Show("Пожалуйста, выберите алгоритм сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    if (!int.TryParse(DelayTextBox.Text, out delay) || delay < 500)
+                    {
+                        MessageBox.Show("Введите корректное значение задержки (минимум 500 мс).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
                     ResetArrayVisuals();
-                    isSortingStarted = false;
-                    StartButton_Click(sender, e);
+
+                    sortingAlgorithm = selectedAlgorithm switch
+                    {
+                        "BubbleSort" => new BubbleSort(),
+                        "QuickSort" => new QuickSort(),
+                        _ => throw new NotImplementedException("Алгоритм не реализован.")
+                    };
+                    
+                    sortingAlgorithm.OnStepCompleted += UpdateArray;
+                    sortingAlgorithm.OnComparison += ShowComparison;
+                    sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
+                    sortingAlgorithm.SortingCompleted += OnSortingCompleted;
+
+                    isSortingStarted = true;
+                    
+                    sortingThread = new Thread(() =>
+                    {
+                        try
+                        {
+                            int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
+                            sortingAlgorithm.Sort(arrayToSort, delay);
+                        }
+                        catch (Exception ex)
+                        {
+                            Dispatcher.Invoke(() =>
+                                MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
+                        }
+                    })
+                    {
+                        IsBackground = true
+                    };
+                    sortingThread.Start();
+                }
+                else
+                {
+                    var result = MessageBox.Show("Сортировка уже запущена. Хотите начать заново?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        StopCurrentSorting();
+                        ResetArrayVisuals();
+                        isSortingStarted = false;
+                        StartButton_Click(sender, e);
+                    }
                 }
             }
+            
         }
 
         //Кнопка "Стоп"
@@ -203,6 +360,48 @@ namespace WPF1
                     numbers[i].Value = array[i];
                 }
             });
+        }
+        
+        private void StartCountrySorting()
+        {
+            try
+            {
+                if (ContinentSelector.SelectedItem is ComboBoxItem selectedContinentItem &&
+                    AttributeSelector.SelectedItem is ComboBoxItem selectedAttributeItem)
+                {
+                    string continent = selectedContinentItem.Content.ToString();
+                    string sortAttribute = selectedAttributeItem.Content.ToString();
+
+                    // Загружаем данные и фильтруем/сортируем
+                    countrySorter = new CountrySorter(countryFilePath);
+                    var sortedCountries = countrySorter.FilterAndSort(continent, sortAttribute);
+
+                    // Сохраняем в файл
+                    countrySorter.SaveToFile(sortedCountries, outputFilePath);
+
+                    // Форматированный вывод
+                    var outputBuilder = new System.Text.StringBuilder();
+                    outputBuilder.AppendLine($"{continent}\n");
+
+                    foreach (var country in sortedCountries)
+                    {
+                        outputBuilder.AppendLine(
+                            $"{country.Name}, {country.Capital}, Площадь = {country.Area:N0} кв.км, Население = {country.Population:N0} человек"
+                        );
+                    }
+
+                    // Выводим результат в текстовое поле
+                    OutputTextBox.Text = outputBuilder.ToString();
+                }
+                else
+                {
+                    MessageBox.Show("Выберите континент и атрибут сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         private async void ShowComparison(int index1, int index2, string message)

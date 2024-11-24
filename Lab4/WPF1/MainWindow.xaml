@@ -177,7 +177,7 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Выпадающий список -->
+                <!-- Выпадающий список задания -->
                 <StackPanel Width="260" Orientation="Vertical" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="0">
                     <TextBlock Text="Задание" Foreground="Black" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
                     <Border Height="40" Background="White" CornerRadius="10" Padding="0" Margin="0,5,0,0">
@@ -189,7 +189,8 @@
                                   BorderThickness="0" 
                                   Margin="10,0,10,0"
                                   VerticalContentAlignment="Center"
-                                  HorizontalContentAlignment="Center">
+                                  HorizontalContentAlignment="Center"
+                                  SelectionChanged="TaskSelector_SelectionChanged">
                             <ComboBoxItem Content="BubbleSort" IsSelected="True" />
                             <ComboBoxItem Content="QuickSort" />
                             <ComboBoxItem Content="Сведения о государствах" />
@@ -198,18 +199,14 @@
                             <ComboBoxItem Content="Сортировка текста (1000 слов)" />
                             <ComboBoxItem Content="Сортировка текста (2000 слов)" />
                             <ComboBoxItem Content="Сортировка текста (5000 слов)" />
-                            <ComboBoxItem Content="График" />
                         </ComboBox>
                     </Border>
                 </StackPanel>
 
-                <!-- Вертикальная линия-разделитель -->
-                <Border x:Name="GraphDivider" Width="1" Background="#D7D7D7" Margin="20,0,5,0" Grid.Column="1"/>
-                
-                <!-- Поля ввода и кнопки -->
+                <!-- Основной контент -->
                 <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <!-- Поле ввода массива -->
-                    <StackPanel Orientation="Vertical" Margin="0,0,20,0">
+                    <StackPanel x:Name="ArrayInputPanel" Orientation="Vertical" Margin="0,0,20,0">
                         <TextBlock x:Name="ArrayInputTextBlock" Text="Ввести свой массив (через пробел)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
                         <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
                             <TextBox x:Name="ArrayInputTextBox" 
@@ -223,7 +220,7 @@
                     </StackPanel>
 
                     <!-- Поле ввода для задержки -->
-                    <StackPanel Orientation="Vertical" Margin="0,0,10,0">
+                    <StackPanel x:Name="DelayInputPanel" Orientation="Vertical" Margin="0,0,10,0">
                         <TextBlock x:Name="DelayTextBlock" Text="Задержка (мс)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
                         <Border Height="40" Width="100" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
                             <TextBox x:Name="DelayTextBox" 
@@ -237,7 +234,81 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- Кнопки -->
+                    <!-- Выпадающее меню для континентов -->
+                    <StackPanel x:Name="ContinentPanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,20,0">
+                        <TextBlock Text="Континент" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                        <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                            <ComboBox x:Name="ContinentSelector"
+                                      SelectedIndex="0"
+                                      FontSize="14"
+                                      FontWeight="Light"
+                                      Foreground="Black"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Margin="10,0,10,0"
+                                      VerticalContentAlignment="Center"
+                                      HorizontalContentAlignment="Center">
+                                <ComboBoxItem Content="Европа" IsSelected="True" />
+                                <ComboBoxItem Content="Азия" />
+                                <ComboBoxItem Content="Африка" />
+                                <ComboBoxItem Content="Северная Америка" />
+                                <ComboBoxItem Content="Южная Америка" />
+                                <ComboBoxItem Content="Океания" />
+                            </ComboBox>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Выпадающее меню для атрибута сортировки -->
+                    <StackPanel x:Name="AttributePanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,10,0">
+                        <TextBlock Text="Атрибут сортировки" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                        <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                            <ComboBox x:Name="AttributeSelector"
+                                      SelectedIndex="1"
+                                      FontSize="14"
+                                      FontWeight="Light"
+                                      Foreground="Black"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Margin="10,0,10,0"
+                                      VerticalContentAlignment="Center"
+                                      HorizontalContentAlignment="Center">
+                                <ComboBoxItem Content="Столица" />
+                                <ComboBoxItem Content="Площадь" IsSelected="True" />
+                                <ComboBoxItem Content="Численность населения" />
+                            </ComboBox>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Поле для выбора пути к файлу -->
+                    <StackPanel x:Name="CustomFilePathPanel" Orientation="Vertical" Visibility="Collapsed" Margin="0,0,20,0">
+                        <TextBlock Text="Другой путь к файлу с текстом" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                        <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                            <TextBox x:Name="CustomFilePathTextBox" 
+                                     FontSize="16" 
+                                     FontWeight="Light" 
+                                     Foreground="Black" 
+                                     Background="Transparent" 
+                                     BorderThickness="0" 
+                                     Margin="15,10,1,10" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Радиокнопки для выбора алгоритма -->
+                    <StackPanel x:Name="AlgorithmSelectorPanel" Orientation="Vertical" Visibility="Collapsed" Margin="0,0,10,0">
+                        <RadioButton x:Name="BaseAlgorithmRadioButton"
+                                     GroupName="SortAlgorithm"
+                                     Content="Базовый или усовершенствованный"
+                                     IsChecked="True"
+                                     FontSize="16" 
+                                     FontWeight="Light" />
+                        <RadioButton x:Name="RadixSortRadioButton"
+                                     GroupName="SortAlgorithm"
+                                     Content="Radix сортировка"
+                                     FontSize="16" 
+                                     FontWeight="Light" />
+                    </StackPanel>
+
+                    <!-- Кнопка "Начать" -->
                     <Button Name="StartButton" 
                             Click="StartButton_Click" 
                             Content="Начать" 
@@ -245,17 +316,17 @@
                             FontWeight="Medium" 
                             Margin="20,0,5,0"
                             Style="{StaticResource CustomButtonStyle}"/>
-                    <Button Name="StopButton" 
-                            Click="StopButton_Click" 
+                    <Button x:Name="StopButton"
                             Content="Стоп" 
+                            Click="StopButton_Click"
                             FontSize="16" 
                             FontWeight="Medium" 
-                            Margin="10,0,5,0"
-                            Background="#CC5747" 
-                            Foreground="White" 
+                            Background="#CC5747"
+                            Foreground="White"
                             BorderBrush="#CC5747"
                             Width="100"
-                            Padding="10,5"/>
+                            Padding="10,5"
+                            Visibility="Visible"/>
                 </StackPanel>
             </Grid>
         </Border>
