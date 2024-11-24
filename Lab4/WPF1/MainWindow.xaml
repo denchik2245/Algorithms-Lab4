@@ -12,7 +12,7 @@
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="10,5,10,5" />
-            <Setter Property="Width" Value="200" />
+            <Setter Property="Width" Value="100" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -157,7 +157,7 @@
             <!-- Поле для вывода текста -->
             <TextBox Name="OutputTextBox" 
                      Width="1200" 
-                     Height="500" 
+                     Height="600" 
                      Margin="10" 
                      Background="#F5F5F5" 
                      Foreground="Black" 
@@ -178,7 +178,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Выпадающий список -->
-                <StackPanel Width="260" Orientation="Vertical" VerticalAlignment="Center" Margin="30,0,30,0" Grid.Column="0">
+                <StackPanel Width="260" Orientation="Vertical" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="0">
                     <TextBlock Text="Задание" Foreground="Black" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
                     <Border Height="40" Background="White" CornerRadius="10" Padding="0" Margin="0,5,0,0">
                         <ComboBox x:Name="TaskSelector" 
@@ -192,6 +192,13 @@
                                   HorizontalContentAlignment="Center">
                             <ComboBoxItem Content="BubbleSort" IsSelected="True" />
                             <ComboBoxItem Content="QuickSort" />
+                            <ComboBoxItem Content="Сведения о государствах" />
+                            <ComboBoxItem Content="Сортировка текста (100 слов)" />
+                            <ComboBoxItem Content="Сортировка текста (500 слов)" />
+                            <ComboBoxItem Content="Сортировка текста (1000 слов)" />
+                            <ComboBoxItem Content="Сортировка текста (2000 слов)" />
+                            <ComboBoxItem Content="Сортировка текста (5000 слов)" />
+                            <ComboBoxItem Content="График" />
                         </ComboBox>
                     </Border>
                 </StackPanel>
@@ -199,11 +206,26 @@
                 <!-- Вертикальная линия-разделитель -->
                 <Border x:Name="GraphDivider" Width="1" Background="#D7D7D7" Margin="20,0,5,0" Grid.Column="1"/>
                 
-                <!-- Поле ввода для задержки и кнопка "Начать" -->
+                <!-- Поля ввода и кнопки -->
                 <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <!-- Поле ввода массива -->
+                    <StackPanel Orientation="Vertical" Margin="0,0,20,0">
+                        <TextBlock x:Name="ArrayInputTextBlock" Text="Ввести свой массив (через пробел)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                        <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                            <TextBox x:Name="ArrayInputTextBox" 
+                                     FontSize="16" 
+                                     FontWeight="Light" 
+                                     Foreground="Black" 
+                                     Background="Transparent" 
+                                     BorderThickness="0" 
+                                     Margin="15,10,1,10" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Поле ввода для задержки -->
                     <StackPanel Orientation="Vertical" Margin="0,0,10,0">
                         <TextBlock x:Name="DelayTextBlock" Text="Задержка (мс)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
-                        <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                        <Border Height="40" Width="100" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
                             <TextBox x:Name="DelayTextBox" 
                                      Text="1000" 
                                      FontSize="16" 
@@ -215,7 +237,7 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- Кнопка "Начать" -->
+                    <!-- Кнопки -->
                     <Button Name="StartButton" 
                             Click="StartButton_Click" 
                             Content="Начать" 
@@ -223,6 +245,17 @@
                             FontWeight="Medium" 
                             Margin="20,0,5,0"
                             Style="{StaticResource CustomButtonStyle}"/>
+                    <Button Name="StopButton" 
+                            Click="StopButton_Click" 
+                            Content="Стоп" 
+                            FontSize="16" 
+                            FontWeight="Medium" 
+                            Margin="10,0,5,0"
+                            Background="#CC5747" 
+                            Foreground="White" 
+                            BorderBrush="#CC5747"
+                            Width="100"
+                            Padding="10,5"/>
                 </StackPanel>
             </Grid>
         </Border>

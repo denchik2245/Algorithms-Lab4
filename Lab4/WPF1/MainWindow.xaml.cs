@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -10,78 +11,196 @@ namespace WPF1
     public partial class MainWindow : Window
     {
         private ObservableCollection<NumberItem> numbers;
+        private List<int> initialNumbers;
         private ISortingAlgorithm sortingAlgorithm;
         private int delay = 1000;
+        private bool isPaused = false;
+        private bool isSortingStarted = false;
+        private Thread sortingThread;
 
         public MainWindow()
         {
             InitializeComponent();
-            numbers = new ObservableCollection<NumberItem>
-            {
-                new NumberItem { Value = 5 },
-                new NumberItem { Value = 9 },
-                new NumberItem { Value = 3 },
-                new NumberItem { Value = 1 },
-                new NumberItem { Value = 8 },
-                new NumberItem { Value = 6 },
-                new NumberItem { Value = 4 },
-                new NumberItem { Value = 2 },
-                new NumberItem { Value = 7 },
-            };
-            ArrayDisplay.ItemsSource = numbers;
+            LoadArrayFromFile("Resources/ArrayForVisual.txt");
+            DataContext = this;
         }
 
+        //Считывание чисел
+        private void LoadArrayFromFile(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                string[] lines = File.ReadAllText(filePath)
+                    .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length > 16)
+                {
+                    MessageBox.Show("Файл содержит больше 16 чисел. Используются только первые 16.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+                numbers = new ObservableCollection<NumberItem>(
+                    lines.Take(16).Select(num =>
+                    {
+                        if (int.TryParse(num, out int value))
+                        {
+                            return new NumberItem { Value = value };
+                        }
+                        else
+                        {
+                            throw new FormatException($"Неверный формат числа: '{num}'");
+                        }
+                    })
+                );
+
+                ArrayDisplay.ItemsSource = numbers;
+                
+                initialNumbers = numbers.Select(n => n.Value).ToList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка чтения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        //Кнопка "Начать"
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
-            if (string.IsNullOrEmpty(selectedAlgorithm))
+            if (isPaused && isSortingStarted)
             {
-                MessageBox.Show("Пожалуйста, выберите алгоритм сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (!int.TryParse(DelayTextBox.Text, out delay) || delay < 0)
-            {
-                MessageBox.Show("Введите корректное значение задержки (положительное число).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                isPaused = false;
+                ResumeSorting();
                 return;
             }
             
+            if (!isSortingStarted)
+            {
+                string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+                if (string.IsNullOrEmpty(selectedAlgorithm))
+                {
+                    MessageBox.Show("Пожалуйста, выберите алгоритм сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!int.TryParse(DelayTextBox.Text, out delay) || delay < 500)
+                {
+                    MessageBox.Show("Введите корректное значение задержки (минимум 500 мс).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                ResetArrayVisuals();
+
+                sortingAlgorithm = selectedAlgorithm switch
+                {
+                    "BubbleSort" => new BubbleSort(),
+                    "QuickSort" => new QuickSort(),
+                    _ => throw new NotImplementedException("Алгоритм не реализован.")
+                };
+                
+                sortingAlgorithm.OnStepCompleted += UpdateArray;
+                sortingAlgorithm.OnComparison += ShowComparison;
+                sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
+                sortingAlgorithm.SortingCompleted += OnSortingCompleted;
+
+                isSortingStarted = true;
+                
+                sortingThread = new Thread(() =>
+                {
+                    try
+                    {
+                        int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
+                        sortingAlgorithm.Sort(arrayToSort, delay);
+                    }
+                    catch (Exception ex)
+                    {
+                        Dispatcher.Invoke(() =>
+                            MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+                sortingThread.Start();
+            }
+            else
+            {
+                var result = MessageBox.Show("Сортировка уже запущена. Хотите начать заново?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    StopCurrentSorting();
+                    ResetArrayVisuals();
+                    isSortingStarted = false;
+                    StartButton_Click(sender, e);
+                }
+            }
+        }
+
+        //Кнопка "Стоп"
+        private void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!isSortingStarted) return;
+
+            if (sortingAlgorithm != null)
+            {
+                sortingAlgorithm.Stop();
+                isPaused = true;
+            }
+        }
+        
+        private void ResumeSorting()
+        {
+            if (sortingAlgorithm == null) return;
+
+            sortingAlgorithm.Resume();
+        }
+        
+        private void StopCurrentSorting()
+        {
+            if (sortingAlgorithm != null)
+            {
+                sortingAlgorithm.Stop();
+            }
+
+            isPaused = false;
+            isSortingStarted = false;
+        }
+        
+        private void OnSortingCompleted()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                isSortingStarted = false;
+                isPaused = false;
+                MessageBox.Show("Сортировка завершена!", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+        }
+        
+        private void ResetArrayVisuals()
+        {
             foreach (var item in numbers)
             {
                 item.IsFinalized = false;
                 item.IsComparing = false;
                 item.XOffset = 0;
             }
-
-            sortingAlgorithm = selectedAlgorithm switch
+            
+            for (int i = 0; i < numbers.Count; i++)
             {
-                "BubbleSort" => new BubbleSort(),
-                "QuickSort" => new QuickSort(),
-                _ => throw new NotImplementedException("Алгоритм не реализован.")
-            };
-
-            sortingAlgorithm.OnStepCompleted += UpdateArray;
-            sortingAlgorithm.OnComparison += ShowComparison;
-            sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
-
-            Thread sortingThread = new Thread(() =>
-            {
-                int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
-                sortingAlgorithm.Sort(arrayToSort, delay);
-            })
-            {
-                IsBackground = true
-            };
-            sortingThread.Start();
+                numbers[i].Value = initialNumbers[i];
+            }
         }
-
-        private void UpdateArray(int[] updatedArray)
+        
+        private void UpdateArray(int[] array)
         {
             Dispatcher.Invoke(() =>
             {
-                for (int i = 0; i < numbers.Count; i++)
+                for (int i = 0; i < array.Length; i++)
                 {
-                    numbers[i].Value = updatedArray[i];
+                    numbers[i].Value = array[i];
                 }
             });
         }
@@ -142,6 +261,7 @@ namespace WPF1
             await Task.Delay(delay);
         }
 
+        //Анимация обмена местами двух элементов (BubbleSort)
         private async Task AnimateSwap(int index1, int index2)
         {
             const double itemWidth = 77;
@@ -151,8 +271,7 @@ namespace WPF1
             FrameworkElement container2 = null;
             Border border1 = null;
             Border border2 = null;
-
-            // Получаем элементы для анимации
+            
             await Dispatcher.InvokeAsync(() =>
             {
                 container1 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index1) as FrameworkElement;
@@ -221,6 +340,7 @@ namespace WPF1
             });
         }
         
+        //Поиск визуального дочернего элемента
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null) return null;
@@ -242,6 +362,7 @@ namespace WPF1
             return null;
         }
         
+        //Обновление элементов списка, помечая их как законченные.
         private void ShowFinalizedElements(int[] finalizedArray)
         {
             Dispatcher.Invoke(() =>

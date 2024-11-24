@@ -13,4 +13,35 @@
       <PackageReference Include="Reloaded.WPF.Animations" Version="1.3.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Resources\Text.txt" />
+      <Content Include="Resources\Text_100.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Text_500.txt" />
+      <Content Include="Resources\Text_500.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Text_1000.txt" />
+      <Content Include="Resources\Text_1000.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Text_2000.txt" />
+      <Content Include="Resources\Text_2000.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Text_5000.txt" />
+      <Content Include="Resources\Text_5000.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Country.txt" />
+      <Content Include="Resources\Country.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\ArrayForVisual.txt" />
+      <Content Include="Resources\ArrayForVisual.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>
