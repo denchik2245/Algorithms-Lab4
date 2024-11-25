@@ -14,7 +14,7 @@ namespace WPF1
         private ObservableCollection<NumberItem> numbers;
         private List<int> initialNumbers;
         private ISortingAlgorithm sortingAlgorithm;
-        private int delay = 1000;
+        private int delay = 500;
         private bool isPaused = false;
         private bool isSortingStarted = false;
         private Thread sortingThread;
@@ -37,40 +37,33 @@ namespace WPF1
             "Сортировка текста (2000 слов)",
             "Сортировка текста (5000 слов)"
         };
-
         
         private void TaskSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded) return; // Проверяем, загружено ли окно
+            if (!IsLoaded) return;
+            OutputTextBox.Clear();
 
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
             if (TextSortingTasks.Contains(selectedTask))
             {
-                // Если выбрана задача сортировки текста
+                OutputTextBox.Height = 700;
 
-                // Скрываем ненужные панели
                 ArrayDisplay.Visibility = Visibility.Collapsed;
                 StopButton.Visibility = Visibility.Collapsed;
                 DelayInputPanel.Visibility = Visibility.Collapsed;
                 ArrayInputPanel.Visibility = Visibility.Collapsed;
 
-                // Показываем необходимые панели
                 CustomFilePathPanel.Visibility = Visibility.Visible;
                 AlgorithmSelectorPanel.Visibility = Visibility.Visible;
 
-                // Скрываем другие специфичные панели, если есть
                 ContinentPanel.Visibility = Visibility.Collapsed;
                 AttributePanel.Visibility = Visibility.Collapsed;
 
-                // Отображаем OutputTextBox для вывода результатов
                 OutputTextBox.Visibility = Visibility.Visible;
             }
             else if (selectedTask == "Сведения о государствах")
             {
-                // Если выбрана задача "Сведения о государствах"
-
-                // Скрываем панели сортировки текста
                 ArrayDisplay.Visibility = Visibility.Collapsed;
                 StopButton.Visibility = Visibility.Collapsed;
                 DelayInputPanel.Visibility = Visibility.Collapsed;
@@ -78,36 +71,29 @@ namespace WPF1
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
 
-                // Показываем специфичные для этой задачи панели
                 ContinentPanel.Visibility = Visibility.Visible;
                 AttributePanel.Visibility = Visibility.Visible;
 
-                // Отображаем OutputTextBox для вывода результатов
                 OutputTextBox.Visibility = Visibility.Visible;
                 OutputTextBox.Height = 700;
             }
             else
             {
-                // Для других задач (например, сортировка чисел)
+                OutputTextBox.Height = 600;
 
-                // Показываем стандартные панели
                 ArrayInputPanel.Visibility = Visibility.Visible;
                 DelayInputPanel.Visibility = Visibility.Visible;
                 ArrayDisplay.Visibility = Visibility.Visible;
                 StopButton.Visibility = Visibility.Visible;
 
-                // Скрываем специфичные для других задач панели
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
                 ContinentPanel.Visibility = Visibility.Collapsed;
                 AttributePanel.Visibility = Visibility.Collapsed;
 
-                // Отображаем OutputTextBox для вывода результатов
                 OutputTextBox.Visibility = Visibility.Visible;
-                OutputTextBox.Height = 600;
             }
         }
-
         
         //Считывание чисел
         private void LoadArrayFromFile(string filePath)
@@ -151,11 +137,11 @@ namespace WPF1
             }
         }
         
+        //Сортировка текста
         private void StartTextSorting()
         {
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
-
-            // Определение пути к файлу
+            
             string defaultFilePath = selectedTask switch
             {
                 "Сортировка текста (100 слов)" => "Resources/Text_100.txt",
@@ -174,8 +160,7 @@ namespace WPF1
                 MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
-            // Получение выбранного алгоритма
+            
             string selectedAlgorithm = BaseAlgorithmRadioButton.IsChecked == true ? "Базовый или усовершенствованный" :
                                        RadixSortRadioButton.IsChecked == true ? "Radix сортировка" : "QuickSort";
 
@@ -183,8 +168,7 @@ namespace WPF1
             {
                 WordSorter sorter = new WordSorter();
                 var sortedWordsWithCounts = sorter.SortWords(filePath, selectedAlgorithm);
-
-                // Формирование строки для отображения
+                
                 StringBuilder sb = new StringBuilder();
                 foreach (var (Word, Count) in sortedWordsWithCounts)
                 {
@@ -198,8 +182,8 @@ namespace WPF1
                 MessageBox.Show($"Ошибка при сортировке: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // Метод для правильного склонения слова "раз"
+        
+        //"1 Раз" или "3 Раза"
         private string GetRussianPlural(int count)
         {
             if (count % 10 == 1 && count % 100 != 11)
@@ -231,7 +215,7 @@ namespace WPF1
                     ResumeSorting();
                     return;
                 }
-            
+
                 if (!isSortingStarted)
                 {
                     string selectedAlgorithm = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
@@ -249,25 +233,50 @@ namespace WPF1
 
                     ResetArrayVisuals();
 
+                    // Загрузка массива из файла на UI-потоке
+                    LoadArrayFromFile("Resources/ArrayForVisual.txt");
+
+                    // Проверка, что массив загружен корректно
+                    if (numbers == null || numbers.Count == 0)
+                    {
+                        MessageBox.Show("Массив для сортировки не загружен.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    // Извлечение массива для сортировки
+                    int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
+
                     sortingAlgorithm = selectedAlgorithm switch
                     {
                         "BubbleSort" => new BubbleSort(),
                         "QuickSort" => new QuickSort(),
+                        "InsertSort" => new InsertSort(),
                         _ => throw new NotImplementedException("Алгоритм не реализован.")
                     };
                     
+                    // Подписки на события
                     sortingAlgorithm.OnStepCompleted += UpdateArray;
-                    sortingAlgorithm.OnComparison += ShowComparison;
-                    sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
                     sortingAlgorithm.SortingCompleted += OnSortingCompleted;
+                    sortingAlgorithm.OnComparison += ShowComparison;
+                    sortingAlgorithm.OnExplanation += ShowExplanation;
 
+                    // Подписка на событие OnSwap в зависимости от алгоритма
+                    if (sortingAlgorithm is BubbleSort)
+                    {
+                        sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
+                        sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
+                    }
+                    else if (sortingAlgorithm is InsertSort)
+                    {
+                        sortingAlgorithm.OnSwap += AnimateSwapHandlerForInsertSort;
+                    }
+                    
                     isSortingStarted = true;
                     
                     sortingThread = new Thread(() =>
                     {
                         try
                         {
-                            int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
                             sortingAlgorithm.Sort(arrayToSort, delay);
                         }
                         catch (Exception ex)
@@ -293,9 +302,8 @@ namespace WPF1
                     }
                 }
             }
-            
         }
-
+        
         //Кнопка "Стоп"
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {
@@ -307,14 +315,14 @@ namespace WPF1
                 isPaused = true;
             }
         }
-        
+
         private void ResumeSorting()
         {
             if (sortingAlgorithm == null) return;
 
             sortingAlgorithm.Resume();
         }
-        
+
         private void StopCurrentSorting()
         {
             if (sortingAlgorithm != null)
@@ -325,7 +333,7 @@ namespace WPF1
             isPaused = false;
             isSortingStarted = false;
         }
-        
+
         private void OnSortingCompleted()
         {
             Dispatcher.Invoke(() =>
@@ -335,7 +343,7 @@ namespace WPF1
                 MessageBox.Show("Сортировка завершена!", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
             });
         }
-        
+
         private void ResetArrayVisuals()
         {
             foreach (var item in numbers)
@@ -344,7 +352,7 @@ namespace WPF1
                 item.IsComparing = false;
                 item.XOffset = 0;
             }
-            
+    
             for (int i = 0; i < numbers.Count; i++)
             {
                 numbers[i].Value = initialNumbers[i];
@@ -357,111 +365,53 @@ namespace WPF1
             {
                 for (int i = 0; i < array.Length; i++)
                 {
-                    numbers[i].Value = array[i];
+                    if (numbers[i].Value != array[i])
+                    {
+                        numbers[i].Value = array[i];
+                    }
                 }
             });
         }
         
-        private void StartCountrySorting()
-        {
-            try
-            {
-                if (ContinentSelector.SelectedItem is ComboBoxItem selectedContinentItem &&
-                    AttributeSelector.SelectedItem is ComboBoxItem selectedAttributeItem)
-                {
-                    string continent = selectedContinentItem.Content.ToString();
-                    string sortAttribute = selectedAttributeItem.Content.ToString();
-
-                    // Загружаем данные и фильтруем/сортируем
-                    countrySorter = new CountrySorter(countryFilePath);
-                    var sortedCountries = countrySorter.FilterAndSort(continent, sortAttribute);
-
-                    // Сохраняем в файл
-                    countrySorter.SaveToFile(sortedCountries, outputFilePath);
-
-                    // Форматированный вывод
-                    var outputBuilder = new System.Text.StringBuilder();
-                    outputBuilder.AppendLine($"{continent}\n");
-
-                    foreach (var country in sortedCountries)
-                    {
-                        outputBuilder.AppendLine(
-                            $"{country.Name}, {country.Capital}, Площадь = {country.Area:N0} кв.км, Население = {country.Population:N0} человек"
-                        );
-                    }
-
-                    // Выводим результат в текстовое поле
-                    OutputTextBox.Text = outputBuilder.ToString();
-                }
-                else
-                {
-                    MessageBox.Show("Выберите континент и атрибут сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        
         private async void ShowComparison(int index1, int index2, string message)
         {
-            if (index1 < 0 || index1 >= numbers.Count || index2 < 0 || index2 >= numbers.Count)
-            {
-                return;
-            }
-            
             await Dispatcher.InvokeAsync(() =>
             {
                 foreach (var item in numbers)
                 {
                     item.IsComparing = false;
                 }
-                
+
                 if (index1 >= 0 && index1 < numbers.Count)
                     numbers[index1].IsComparing = true;
                 if (index2 >= 0 && index2 < numbers.Count)
                     numbers[index2].IsComparing = true;
-                
+            });
+
+            await Task.Delay(delay);
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (index1 >= 0 && index1 < numbers.Count)
+                    numbers[index1].IsComparing = false;
+                if (index2 >= 0 && index2 < numbers.Count)
+                    numbers[index2].IsComparing = false;
+            });
+        }
+        
+        private async void ShowExplanation(string message)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
                 OutputTextBox.AppendText($"{message}\n");
                 OutputTextBox.ScrollToEnd();
             });
-            
-            await Task.Delay(300);
-            
-            if (numbers[index1].Value > numbers[index2].Value)
-            {
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    OutputTextBox.AppendText($"{numbers[index1].Value} > {numbers[index2].Value}. Меняем местами\n");
-                });
-                
-                await AnimateSwap(index1, index2);
-            }
-            else
-            {
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    OutputTextBox.AppendText($"{numbers[index1].Value} < {numbers[index2].Value}. Остаются на местах\n");
-                });
-            }
-            
-            await Dispatcher.InvokeAsync(() =>
-            {
-                OutputTextBox.AppendText("\n");
-            });
-            
-            await Dispatcher.InvokeAsync(() =>
-            {
-                numbers[index1].IsComparing = false;
-                numbers[index2].IsComparing = false;
-            });
-            
+
             await Task.Delay(delay);
         }
-
-        //Анимация обмена местами двух элементов (BubbleSort)
-        private async Task AnimateSwap(int index1, int index2)
+        
+        //Анимация для BubbleSort
+        private async Task AnimateSwapForBubbleSort(int index1, int index2)
         {
             const double itemWidth = 77;
             double animationDurationSeconds = 0.5;
@@ -521,10 +471,12 @@ namespace WPF1
 
             await Dispatcher.InvokeAsync(() =>
             {
+                // Обновляем значения в списке numbers
                 int temp = numbers[index1].Value;
                 numbers[index1].Value = numbers[index2].Value;
                 numbers[index2].Value = temp;
                 
+                // Сбрасываем трансформации
                 if (border1.RenderTransform is TranslateTransform tt1)
                 {
                     tt1.BeginAnimation(TranslateTransform.XProperty, null);
@@ -537,6 +489,94 @@ namespace WPF1
                     tt2.X = 0;
                 }
             });
+        }
+        
+        //Анимация для InsertSort
+        private async Task AnimateSwapForInsertSort(int index1, int index2)
+        {
+            const double itemWidth = 77;
+            double animationDurationSeconds = 0.5;
+
+            FrameworkElement container1 = null;
+            FrameworkElement container2 = null;
+            Border border1 = null;
+            Border border2 = null;
+            
+            await Dispatcher.InvokeAsync(() =>
+            {
+                container1 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index1) as FrameworkElement;
+                container2 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index2) as FrameworkElement;
+
+                if (container1 != null && container2 != null)
+                {
+                    border1 = FindVisualChild<Border>(container1);
+                    border2 = FindVisualChild<Border>(container2);
+                }
+            });
+
+            if (border1 == null || border2 == null) return;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!(border1.RenderTransform is TranslateTransform))
+                {
+                    border1.RenderTransform = new TranslateTransform();
+                }
+                if (!(border2.RenderTransform is TranslateTransform))
+                {
+                    border2.RenderTransform = new TranslateTransform();
+                }
+
+                TranslateTransform tt1 = (TranslateTransform)border1.RenderTransform;
+                TranslateTransform tt2 = (TranslateTransform)border2.RenderTransform;
+                
+                DoubleAnimation animation1 = new DoubleAnimation
+                {
+                    To = itemWidth,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+
+                DoubleAnimation animation2 = new DoubleAnimation
+                {
+                    To = -itemWidth,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+                
+                tt1.BeginAnimation(TranslateTransform.XProperty, animation1);
+                tt2.BeginAnimation(TranslateTransform.XProperty, animation2);
+            });
+            
+            await Task.Delay((int)(animationDurationSeconds * 1000));
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                // Сбрасываем трансформации
+                if (border1.RenderTransform is TranslateTransform tt1)
+                {
+                    tt1.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt1.X = 0;
+                }
+
+                if (border2.RenderTransform is TranslateTransform tt2)
+                {
+                    tt2.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt2.X = 0;
+                }
+            });
+        }
+        
+        // Метод для анимации обмена элементов
+        private async void AnimateSwapHandlerForBubbleSort(int index1, int index2)
+        {
+            await AnimateSwapForBubbleSort(index1, index2);
+        }
+        
+        // Метод для InsertSort (без обновления значений)
+        private async void AnimateSwapHandlerForInsertSort(int index1, int index2)
+        {
+            await AnimateSwapForInsertSort(index1, index2);
         }
         
         //Поиск визуального дочернего элемента
@@ -575,6 +615,44 @@ namespace WPF1
                     }
                 }
             });
+        }
+        
+        //Сортировка стран
+        private void StartCountrySorting()
+        {
+            try
+            {
+                if (ContinentSelector.SelectedItem is ComboBoxItem selectedContinentItem &&
+                    AttributeSelector.SelectedItem is ComboBoxItem selectedAttributeItem)
+                {
+                    string continent = selectedContinentItem.Content.ToString();
+                    string sortAttribute = selectedAttributeItem.Content.ToString();
+                    
+                    countrySorter = new CountrySorter(countryFilePath);
+                    var sortedCountries = countrySorter.FilterAndSort(continent, sortAttribute);
+                    countrySorter.SaveToFile(sortedCountries, outputFilePath);
+                    
+                    var outputBuilder = new System.Text.StringBuilder();
+                    outputBuilder.AppendLine($"{continent}\n");
+
+                    foreach (var country in sortedCountries)
+                    {
+                        outputBuilder.AppendLine(
+                            $"{country.Name}, {country.Capital}, Площадь = {country.Area:N0} кв.км, Население = {country.Population:N0} человек"
+                        );
+                    }
+                    
+                    OutputTextBox.Text = outputBuilder.ToString();
+                }
+                else
+                {
+                    MessageBox.Show("Выберите континент и атрибут сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

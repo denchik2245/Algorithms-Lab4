@@ -4,10 +4,12 @@
 {
     public event Action<int[]> OnStepCompleted;
     public event Action<int, int, string> OnComparison;
+    public event Action<int, int> OnSwap;
     public event Action<int[]> OnFinalizedElements;
     public event Action SortingCompleted;
+    public event Action<string> OnExplanation;
 
-    private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true); // Изначально не приостановлено
+    private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true);
     private volatile bool isStopped = false;
     private bool isResumed = false;
     private Stack<(int low, int high)> stack = new();
@@ -24,9 +26,8 @@
 
         while (stack.Count > 0)
         {
-            pauseEvent.Wait(); // Ожидаем, если сортировка приостановлена
-
-            // Проверяем, была ли сортировка полностью остановлена
+            pauseEvent.Wait();
+            
             if (isStopped)
             {
                 return;
@@ -37,27 +38,22 @@
             {
                 int pivotIndex = Partition(array, low, high, delay);
                 if (pivotIndex == -1)
-                    return; // Сортировка была остановлена
-
-                // После разбиения опорный элемент на своем месте, его можно финализировать
+                    return;
+                
                 finalized[pivotIndex] = true;
                 OnFinalizedElements?.Invoke(GetFinalizedIndices());
-
-                // Добавляем подмассивы для дальнейшей сортировки
+                
                 stack.Push((low, pivotIndex - 1));
                 stack.Push((pivotIndex + 1, high));
             }
             else if (low == high)
             {
-                // Один элемент уже на месте
                 finalized[low] = true;
                 OnFinalizedElements?.Invoke(GetFinalizedIndices());
             }
         }
 
         isResumed = false;
-
-        // Оповещаем о завершении сортировки
         SortingCompleted?.Invoke();
     }
 
@@ -68,10 +64,10 @@
 
         for (int j = low; j < high; j++)
         {
-            pauseEvent.Wait(); // Ожидаем, если сортировка приостановлена
+            pauseEvent.Wait();
 
             if (isStopped)
-                return -1; // Сортировка была остановлена
+                return -1;
 
             OnComparison?.Invoke(j, high, $"Сравниваем: {array[j]} < {pivot}");
             Thread.Sleep(delay);
@@ -95,15 +91,14 @@
 
     public void Stop()
     {
-        pauseEvent.Reset(); // Приостанавливаем сортировку
+        pauseEvent.Reset();
     }
 
     public void Resume()
     {
-        pauseEvent.Set(); // Возобновляем сортировку
+        pauseEvent.Set();
     }
-
-    // Вспомогательный метод для получения финализированных элементов
+    
     private int[] GetFinalizedIndices()
     {
         List<int> finalizedIndices = new List<int>();

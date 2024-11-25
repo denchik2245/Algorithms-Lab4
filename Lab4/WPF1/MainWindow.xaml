@@ -34,6 +34,67 @@
             </Setter>
         </Style>
 
+        <Style x:Key="StopButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#CC5747" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,5,10,5" />
+            <Setter Property="Width" Value="100" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}" 
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#A03B33" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="CustomRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Внешний круг с тонкой обводкой -->
+                            <Grid VerticalAlignment="Center" Margin="0,0,8,0">
+                                <Ellipse x:Name="OuterCircle"
+                                         Width="24" 
+                                         Height="24" 
+                                         Fill="Transparent" 
+                                         Stroke="#C3C3C3" 
+                                         StrokeThickness="1.5" />
+                                <!-- Внутренний синий круг -->
+                                <Ellipse x:Name="InnerCircle"
+                                         Width="16" 
+                                         Height="16" 
+                                         Fill="Transparent" />
+                            </Grid>
+                            <!-- Текст радиокнопки -->
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <!-- При выборе радиокнопки закрасить внутренний круг синим -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="InnerCircle" Property="Fill" Value="#2A2D32" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <!-- Стиль для элементов массива с анимациями -->
         <Style x:Key="NumberItemStyle" TargetType="Border">
             <!-- Устанавливаем начальный фон как SolidColorBrush -->
@@ -192,6 +253,7 @@
                                   HorizontalContentAlignment="Center"
                                   SelectionChanged="TaskSelector_SelectionChanged">
                             <ComboBoxItem Content="BubbleSort" IsSelected="True" />
+                            <ComboBoxItem Content="InsertSort" />
                             <ComboBoxItem Content="QuickSort" />
                             <ComboBoxItem Content="Сведения о государствах" />
                             <ComboBoxItem Content="Сортировка текста (100 слов)" />
@@ -224,7 +286,7 @@
                         <TextBlock x:Name="DelayTextBlock" Text="Задержка (мс)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
                         <Border Height="40" Width="100" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
                             <TextBox x:Name="DelayTextBox" 
-                                     Text="1000" 
+                                     Text="500" 
                                      FontSize="16" 
                                      FontWeight="Light" 
                                      Foreground="Black" 
@@ -279,33 +341,41 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- Поле для выбора пути к файлу -->
-                    <StackPanel x:Name="CustomFilePathPanel" Orientation="Vertical" Visibility="Collapsed" Margin="0,0,20,0">
-                        <TextBlock Text="Другой путь к файлу с текстом" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
-                        <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
-                            <TextBox x:Name="CustomFilePathTextBox" 
-                                     FontSize="16" 
-                                     FontWeight="Light" 
-                                     Foreground="Black" 
-                                     Background="Transparent" 
-                                     BorderThickness="0" 
-                                     Margin="15,10,1,10" />
-                        </Border>
-                    </StackPanel>
-
                     <!-- Радиокнопки для выбора алгоритма -->
-                    <StackPanel x:Name="AlgorithmSelectorPanel" Orientation="Vertical" Visibility="Collapsed" Margin="0,0,10,0">
-                        <RadioButton x:Name="BaseAlgorithmRadioButton"
-                                     GroupName="SortAlgorithm"
-                                     Content="Базовый или усовершенствованный"
-                                     IsChecked="True"
-                                     FontSize="16" 
-                                     FontWeight="Light" />
-                        <RadioButton x:Name="RadixSortRadioButton"
-                                     GroupName="SortAlgorithm"
-                                     Content="Radix сортировка"
-                                     FontSize="16" 
-                                     FontWeight="Light" />
+                    <StackPanel Orientation="Horizontal" Visibility="Visible" Margin="0,0,10,0">
+                        <!-- Радиокнопки для выбора алгоритма -->
+                        <StackPanel x:Name="AlgorithmSelectorPanel" Orientation="Vertical" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="0,0,20,0">
+                            <RadioButton x:Name="BaseAlgorithmRadioButton"
+                                         GroupName="SortAlgorithm"
+                                         Content="Базовый или усовершенствованный"
+                                         IsChecked="True"
+                                         FontSize="16" 
+                                         FontWeight="Light" 
+                                         VerticalContentAlignment="Center"
+                                         Margin="0,0,0,5"
+                                         Style="{StaticResource CustomRadioButtonStyle}" />
+                            <RadioButton x:Name="RadixSortRadioButton"
+                                         GroupName="SortAlgorithm"
+                                         Content="Radix сортировка"
+                                         FontSize="16" 
+                                         FontWeight="Light" 
+                                         VerticalContentAlignment="Center"
+                                         Style="{StaticResource CustomRadioButtonStyle}" />
+                        </StackPanel>
+
+                        <!-- Поле для выбора пути к файлу -->
+                        <StackPanel x:Name="CustomFilePathPanel" Orientation="Vertical" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="0,0,10,0">
+                            <TextBlock Text="Другой путь к файлу с текстом" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                            <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                                <TextBox x:Name="CustomFilePathTextBox" 
+                                         FontSize="16" 
+                                         FontWeight="Light" 
+                                         Foreground="Black" 
+                                         Background="Transparent" 
+                                         BorderThickness="0" 
+                                         Margin="15,10,1,10" />
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Кнопка "Начать" -->
@@ -321,12 +391,7 @@
                             Click="StopButton_Click"
                             FontSize="16" 
                             FontWeight="Medium" 
-                            Background="#CC5747"
-                            Foreground="White"
-                            BorderBrush="#CC5747"
-                            Width="100"
-                            Padding="10,5"
-                            Visibility="Visible"/>
+                            Style="{StaticResource StopButtonStyle}" />
                 </StackPanel>
             </Grid>
         </Border>
