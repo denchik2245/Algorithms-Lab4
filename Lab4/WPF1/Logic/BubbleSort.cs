@@ -1,5 +1,4 @@
-﻿
-namespace WPF1.Logic
+﻿namespace WPF1.Logic
 {
     public class BubbleSort : ISortingAlgorithm
     {
@@ -41,7 +40,6 @@ namespace WPF1.Logic
                     if (array[j] > array[j + 1])
                     {
                         OnExplanation?.Invoke($"{array[j]} > {array[j + 1]}, меняем местами");
-                        // Swap elements
                         (array[j], array[j + 1]) = (array[j + 1], array[j]);
                         swapped = true;
                         OnSwap?.Invoke(j, j + 1);
@@ -49,7 +47,7 @@ namespace WPF1.Logic
                     }
                     else
                     {
-                        OnExplanation?.Invoke($"{array[j]} <= {array[j + 1]}, оставляем на местах");
+                        OnExplanation?.Invoke($"{array[j]} < {array[j + 1]}, оставляем на местах");
                         Thread.Sleep(delay);
                     }
                 }
