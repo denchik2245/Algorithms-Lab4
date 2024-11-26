@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -19,8 +20,6 @@ namespace WPF1
         private bool isPaused = false;
         private bool isSortingStarted = false;
         private Thread sortingThread;
-        private string countryFilePath = "Resources/Country.txt";
-        private string outputFilePath = "Resources/SortedCountries.txt";
         private bool isAnimating = false;
 
         public MainWindow()
@@ -29,16 +28,8 @@ namespace WPF1
             LoadArrayFromFile("Resources/ArrayForVisual.txt");
             DataContext = this;
         }
-
-        private readonly List<string> TextSortingTasks = new List<string>
-        {
-            "Сортировка текста (100 слов)",
-            "Сортировка текста (500 слов)",
-            "Сортировка текста (1000 слов)",
-            "Сортировка текста (2000 слов)",
-            "Сортировка текста (5000 слов)"
-        };
         
+        //Обработчик пунктов меню
         private void TaskSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsLoaded) return;
@@ -55,7 +46,7 @@ namespace WPF1
             OutputTextBox.Clear();
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
-            if (TextSortingTasks.Contains(selectedTask))
+            if (selectedTask == "Сортировка текста")
             {
                 OutputTextBox.Height = 700;
 
@@ -65,13 +56,16 @@ namespace WPF1
                 ArrayInputPanel.Visibility = Visibility.Collapsed;
                 CustomFilePathPanel.Visibility = Visibility.Visible;
                 AlgorithmSelectorPanel.Visibility = Visibility.Visible;
+                AllWordsTextBox.Visibility = Visibility.Visible;
+                UniqueWordsTextBox.Visibility = Visibility.Visible;
+                CustomFilePathPanel.Visibility = Visibility.Visible;
 
                 SortPanel.Visibility = Visibility.Collapsed;
                 FilterPanel.Visibility = Visibility.Collapsed;
                 MethodSelectorPanel.Visibility = Visibility.Collapsed;
-                CustomFilePathPanel.Visibility = Visibility.Collapsed;
+                Table2.Visibility = Visibility.Collapsed;
 
-                OutputTextBox.Visibility = Visibility.Visible;
+                OutputTextBox.Visibility = Visibility.Collapsed;
             }
             else if (selectedTask == "Фильтрация таблиц")
             {
@@ -81,14 +75,33 @@ namespace WPF1
                 ArrayInputPanel.Visibility = Visibility.Collapsed;
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
+                AllWordsTextBox.Visibility = Visibility.Collapsed;
+                UniqueWordsTextBox.Visibility = Visibility.Collapsed;
 
                 SortPanel.Visibility = Visibility.Visible;
                 FilterPanel.Visibility = Visibility.Visible;
                 MethodSelectorPanel.Visibility = Visibility.Visible;
                 CustomFilePathPanel.Visibility = Visibility.Visible;
+                Table2.Visibility = Visibility.Collapsed;
 
                 OutputTextBox.Visibility = Visibility.Visible;
                 OutputTextBox.Height = 700;
+            }
+            else if (selectedTask == "Таблица сравнения")
+            {
+                ArrayDisplay.Visibility = Visibility.Collapsed;
+                StopButton.Visibility = Visibility.Collapsed;
+                DelayInputPanel.Visibility = Visibility.Collapsed;
+                ArrayInputPanel.Visibility = Visibility.Collapsed;
+                CustomFilePathPanel.Visibility = Visibility.Collapsed;
+                AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
+                AllWordsTextBox.Visibility = Visibility.Collapsed;
+                UniqueWordsTextBox.Visibility = Visibility.Collapsed;
+                SortPanel.Visibility = Visibility.Collapsed;
+                FilterPanel.Visibility = Visibility.Collapsed;
+                MethodSelectorPanel.Visibility = Visibility.Collapsed;
+                OutputTextBox.Visibility = Visibility.Collapsed;
+                Table2.Visibility = Visibility.Visible;
             }
             else
             {
@@ -105,6 +118,9 @@ namespace WPF1
                 FilterPanel.Visibility = Visibility.Collapsed;
                 MethodSelectorPanel.Visibility = Visibility.Collapsed;
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
+                AllWordsTextBox.Visibility = Visibility.Collapsed;
+                UniqueWordsTextBox.Visibility = Visibility.Collapsed;
+                Table2.Visibility = Visibility.Collapsed;
 
                 OutputTextBox.Visibility = Visibility.Visible;
             }
@@ -152,84 +168,11 @@ namespace WPF1
             }
         }
         
-        //Кнопка "Выбрать файл"
-        private void OpenFileButton_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Выберите файл",
-                Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                CustomFilePathTextBox.Text = openFileDialog.FileName;
-                PopulateSelectors(openFileDialog.FileName);
-            }
-        }
-        
         //Получить путь к файлу
         private string GetFilePath()
         {
             string customPath = CustomFilePathTextBox?.Text;
             return string.IsNullOrWhiteSpace(customPath) ? "Resources/Country.txt" : customPath;
-        }
-        
-        //Сортировка текста
-        private void StartTextSorting()
-        {
-            string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
-            
-            string defaultFilePath = selectedTask switch
-            {
-                "Сортировка текста (100 слов)" => "Resources/Text_100.txt",
-                "Сортировка текста (500 слов)" => "Resources/Text_500.txt",
-                "Сортировка текста (1000 слов)" => "Resources/Text_1000.txt",
-                "Сортировка текста (2000 слов)" => "Resources/Text_2000.txt",
-                "Сортировка текста (5000 слов)" => "Resources/Text_5000.txt",
-                _ => throw new NotImplementedException("Выбранная задача сортировки текста не поддерживается.")
-            };
-
-            string customFilePath = CustomFilePathTextBox.Text.Trim();
-            string filePath = string.IsNullOrEmpty(customFilePath) ? defaultFilePath : customFilePath;
-
-            if (!File.Exists(filePath))
-            {
-                MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-            
-            string selectedAlgorithm = BaseAlgorithmRadioButton.IsChecked == true ? "Базовый или усовершенствованный" :
-                                       RadixSortRadioButton.IsChecked == true ? "Radix сортировка" : "QuickSort";
-
-            try
-            {
-                WordSorter sorter = new WordSorter();
-                var sortedWordsWithCounts = sorter.SortWords(filePath, selectedAlgorithm);
-                
-                StringBuilder sb = new StringBuilder();
-                foreach (var (Word, Count) in sortedWordsWithCounts)
-                {
-                    sb.AppendLine($"{Word} (Встречалось {Count} {GetRussianPlural(Count)})");
-                }
-
-                OutputTextBox.Text = sb.ToString();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при сортировке: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        
-        //"1 Раз" или "3 Раза"
-        private string GetRussianPlural(int count)
-        {
-            if (count % 10 == 1 && count % 100 != 11)
-                return "раз";
-            else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20))
-                return "раза";
-            else
-                return "раз";
         }
         
         //Кнопка "Начать"
@@ -244,6 +187,10 @@ namespace WPF1
             else if (selectedTask.StartsWith("Сортировка текста"))
             {
                 StartTextSorting();
+            }
+            else if (selectedTask == "Таблица сравнения")
+            {
+                StartSortingExperiments();
             }
             else
             {
@@ -393,13 +340,29 @@ namespace WPF1
             }
         }
 
+        //Кнопка "Выбрать файл"
+        private void OpenFileButton_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Выберите файл",
+                Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                CustomFilePathTextBox.Text = openFileDialog.FileName;
+                PopulateSelectors(openFileDialog.FileName);
+            }
+        }
+        
+        //Методы для первого задания
         private void ResumeSorting()
         {
             if (sortingAlgorithm == null) return;
 
             sortingAlgorithm.Resume();
         }
-
         private void StopCurrentSorting()
         {
             if (sortingAlgorithm != null)
@@ -410,7 +373,6 @@ namespace WPF1
             isPaused = false;
             isSortingStarted = false;
         }
-
         private void OnSortingCompleted()
         {
             Dispatcher.Invoke(() =>
@@ -420,7 +382,6 @@ namespace WPF1
                 MessageBox.Show("Сортировка завершена!", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
             });
         }
-
         private void ResetArrayVisuals()
         {
             foreach (var item in numbers)
@@ -435,7 +396,6 @@ namespace WPF1
                 numbers[i].Value = initialNumbers[i];
             }
         }
-        
         private void UpdateArray(int[] newArray)
         {
             if (isAnimating) return;
@@ -449,6 +409,7 @@ namespace WPF1
             });
         }
         
+        //Показать объяснение
         private async void ShowExplanation(string message)
         {
             await Dispatcher.InvokeAsync(() =>
@@ -460,29 +421,7 @@ namespace WPF1
             await Task.Delay(delay);
         }
         
-        private async Task HighlightElements(int index1, int index2 = -1)
-        {
-            await Dispatcher.InvokeAsync(() =>
-            {
-                foreach (var item in numbers)
-                {
-                    item.IsComparing = false;
-                }
-                
-                if (index1 >= 0 && index1 < numbers.Count)
-                {
-                    numbers[index1].IsComparing = true;
-                }
-
-                if (index2 >= 0 && index2 < numbers.Count)
-                {
-                    numbers[index2].IsComparing = true;
-                }
-            });
-
-            await Task.Delay(300);
-        }
-        
+        //Для HeapSort
         private async Task HandleCompareAndSwap(int nodeIndex, int leftChildIndex, int rightChildIndex)
         {
             int largestIndex = nodeIndex;
@@ -514,7 +453,30 @@ namespace WPF1
                 await HighlightElements(nodeIndex);
             }
         }
+        private async Task HighlightElements(int index1, int index2 = -1)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var item in numbers)
+                {
+                    item.IsComparing = false;
+                }
+                
+                if (index1 >= 0 && index1 < numbers.Count)
+                {
+                    numbers[index1].IsComparing = true;
+                }
+
+                if (index2 >= 0 && index2 < numbers.Count)
+                {
+                    numbers[index2].IsComparing = true;
+                }
+            });
+
+            await Task.Delay(300);
+        }
         
+        //Подсветка для BubbleSort
         private async void ShowComparison(int index1, int index2, int unused)
         {
             await Dispatcher.InvokeAsync(() =>
@@ -541,7 +503,7 @@ namespace WPF1
             });
         }
         
-        //Обновление элементов списка, помечая их как законченные.
+        //Элементы которые закончили свой путь
         private void ShowFinalizedElements(int[] finalizedArray)
         {
             Dispatcher.Invoke(() =>
@@ -745,6 +707,91 @@ namespace WPF1
             return null;
         }
         
+        //Начать сортировку
+        private void StartSorting()
+        {
+            try
+            {
+                string filePath = GetFilePath();
+                string filterValue = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string sortKey = (SortAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string sortingMethod = (MethodSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+
+                if (string.IsNullOrEmpty(filterValue) || string.IsNullOrEmpty(sortKey) || string.IsNullOrEmpty(sortingMethod))
+                {
+                    MessageBox.Show("Пожалуйста, выберите параметры для фильтрации, сортировки и метод сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                
+                string filterColumn = GetFilterColumn(filePath);
+                if (string.IsNullOrEmpty(filterColumn))
+                {
+                    MessageBox.Show("Не удалось определить фильтрующий столбец.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                string outputFilePath = "sorted_output.txt";
+                ExternalSorter.MergeSort(filePath, filterColumn, filterValue, sortKey, outputFilePath, sortingMethod);
+                
+                try
+                {
+                    string explanation = SortingExplanation.GenerateExplanation(sortingMethod, "Таблица данных", filterColumn, filterValue, sortKey);
+                    var sortedTable = Table.LoadFromFile(outputFilePath);
+                    DisplaySortedTable(sortedTable, filterValue, sortKey, explanation);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка в генерации объяснения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        //Отображение отфильтрованных и отсортированных данных таблицы
+        private void DisplaySortedTable(Table table, string filterValue, string sortKey, string explanation)
+        {
+            StringBuilder sb = new StringBuilder();
+            
+            sb.AppendLine(filterValue);
+            sb.AppendLine();
+            
+            var numericalColumns = GetNumericalColumns(table);
+            var headers = table.Columns;
+            
+            foreach (var row in table.Rows)
+            {
+                List<string> rowValues = new List<string>();
+
+                for (int i = 0; i < headers.Count; i++)
+                {
+                    var column = headers[i];
+                    
+                    if (i == 1)
+                        continue;
+
+                    var value = row[column];
+
+                    if (numericalColumns.Contains(column))
+                    {
+                        rowValues.Add($"{column}: {FormatNumericValue(value, column)}");
+                    }
+                    else
+                    {
+                        rowValues.Add(value);
+                    }
+                }
+                
+                sb.AppendLine(string.Join(", ", rowValues));
+            }
+            
+            sb.AppendLine(explanation);
+            OutputTextBox.Text = sb.ToString();
+        }
+        
+        //Получение пунктов списка взависимости от файла
         private void PopulateSelectors(string filePath)
         {
             try
@@ -775,7 +822,6 @@ namespace WPF1
                     FilterAttributeSelector.Items.Add(new ComboBoxItem { Content = value });
                 }
                 
-                // Заполнение атрибута сортировки (первый столбец и остальные, кроме фильтрующего)
                 SortAttributeSelector.Items.Clear();
                 foreach (var header in headers.Where((h, index) => index != 1))
                 {
@@ -796,6 +842,7 @@ namespace WPF1
             }
         }
         
+        //Получить заголовок второго столбца
         private string GetFilterColumn(string filePath)
         {
             var lines = File.ReadLines(filePath);
@@ -811,59 +858,7 @@ namespace WPF1
             throw new Exception("Невозможно определить фильтрующий столбец.");
         }
         
-        private void DisplaySortedTable(Table table, string filterValue, string sortKey, string explanation)
-        {
-            // Строим строку вывода
-            StringBuilder sb = new StringBuilder();
-
-            // Выводим значение фильтра вверху
-            sb.AppendLine(filterValue);
-            sb.AppendLine();
-
-            // Определяем числовые столбцы
-            var numericalColumns = GetNumericalColumns(table);
-
-            // Получаем названия столбцов
-            var headers = table.Columns;
-
-            // Для каждой строки формируем вывод
-            foreach (var row in table.Rows)
-            {
-                List<string> rowValues = new List<string>();
-
-                for (int i = 0; i < headers.Count; i++)
-                {
-                    var column = headers[i];
-
-                    // Пропускаем фильтрующий столбец (второй столбец)
-                    if (i == 1)
-                        continue;
-
-                    var value = row[column];
-
-                    if (numericalColumns.Contains(column))
-                    {
-                        // Добавляем параметр и значение
-                        rowValues.Add($"{column}: {FormatNumericValue(value, column)}");
-                    }
-                    else
-                    {
-                        // Добавляем значение напрямую
-                        rowValues.Add(value);
-                    }
-                }
-
-                // Соединяем значения через запятую
-                sb.AppendLine(string.Join(", ", rowValues));
-            }
-
-            // Добавляем объяснение
-            sb.AppendLine(explanation);
-
-            // Выводим результат в интерфейсе (например, в TextBox)
-            OutputTextBox.Text = sb.ToString();
-        }
-        
+        //Определяет, какие столбцы таблицы содержат числовые данные
         private HashSet<string> GetNumericalColumns(Table table)
         {
             var numericalColumns = new HashSet<string>();
@@ -875,13 +870,12 @@ namespace WPF1
 
             foreach (var column in table.Columns)
             {
-                // Пропускаем фильтрующий столбец (второй столбец)
                 if (table.Columns.IndexOf(column) == 1)
                     continue;
 
                 bool isNumeric = true;
 
-                foreach (var row in table.Rows.Take(5)) // Проверяем первые 5 строк
+                foreach (var row in table.Rows.Take(5))
                 {
                     var value = row[column];
                     if (!double.TryParse(value, NumberStyles.Any, culture, out _))
@@ -900,15 +894,15 @@ namespace WPF1
             return numericalColumns;
         }
         
+        //Форматирование числовых значений
         private string FormatNumericValue(string value, string column)
         {
             var culture = CultureInfo.GetCultureInfo("ru-RU");
 
             if (double.TryParse(value, NumberStyles.Any, culture, out double numericValue))
             {
-                string formattedValue = numericValue.ToString("N0", culture); // Убираем дробную часть
-
-                // Добавляем единицы измерения в зависимости от столбца
+                string formattedValue = numericValue.ToString("N0", culture);
+                
                 if (column.Contains("Площадь"))
                 {
                     return $"{formattedValue} кв.км";
@@ -932,54 +926,119 @@ namespace WPF1
             }
         }
         
-        private void StartSorting()
+        //Сортировка текста
+        private void StartTextSorting()
         {
+            string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
+
+            string defaultFilePath = selectedTask switch
+            {
+                "Сортировка текста" => "Resources/Text_100.txt",
+                _ => throw new NotImplementedException("Выбранная задача сортировки текста не поддерживается.")
+            };
+
+            string customFilePath = CustomFilePathTextBox.Text.Trim();
+            string filePath = string.IsNullOrEmpty(customFilePath) ? defaultFilePath : customFilePath;
+
+            if (!File.Exists(filePath))
+            {
+                MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Определяем алгоритм сортировки
+            IWordSorter sorterAlgorithm = BaseAlgorithmRadioButton.IsChecked == true
+                ? new QuickSortSorter()
+                : RadixSortRadioButton.IsChecked == true
+                    ? new RadixSortSorter()
+                    : throw new NotImplementedException("Выбранный алгоритм сортировки не поддерживается.");
+
             try
             {
-                string filePath = GetFilePath();
+                WordSorter wordSorter = new WordSorter(sorterAlgorithm);
+                var sortedWordsWithCounts = wordSorter.SortWords(filePath);
 
-                string filterValue = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
-                string sortKey = (SortAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
-                string sortingMethod = (MethodSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                // Формируем вывод для первого поля с повторяющимися словами
+                AllWordsTextBox.Text = string.Join(Environment.NewLine, sortedWordsWithCounts.SelectMany(wc => Enumerable.Repeat(wc.Word, wc.Count)));
 
-                if (string.IsNullOrEmpty(filterValue) || string.IsNullOrEmpty(sortKey) || string.IsNullOrEmpty(sortingMethod))
-                {
-                    MessageBox.Show("Пожалуйста, выберите параметры для фильтрации, сортировки и метод сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Фильтрующий столбец всегда второй
-                string filterColumn = GetFilterColumn(filePath);
-                if (string.IsNullOrEmpty(filterColumn))
-                {
-                    MessageBox.Show("Не удалось определить фильтрующий столбец.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                string outputFilePath = "sorted_output.txt";
-
-                // Передаем выбранный метод сортировки
-                ExternalSorter.MergeSort(filePath, filterColumn, filterValue, sortKey, outputFilePath, sortingMethod);
-
-                // Генерируем объяснение сортировки
-                try
-                {
-                    string explanation = SortingExplanation.GenerateExplanation(sortingMethod, "Таблица данных", filterColumn, filterValue, sortKey);
-
-                    // Отображаем результат
-                    var sortedTable = Table.LoadFromFile(outputFilePath);
-                    DisplaySortedTable(sortedTable, filterValue, sortKey, explanation);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка в генерации объяснения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                // Формируем вывод для второго поля с уникальными словами и количеством
+                UniqueWordsTextBox.Text = string.Join(Environment.NewLine, sortedWordsWithCounts
+                    .Select(wc => $"{wc.Word} (Встречалось {wc.Count} {GetRussianPlural(wc.Count)})"));
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сортировке: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        // Метод для корректного склонения слова "раз"
+        private string GetRussianPlural(int count)
+        {
+            if (count % 10 == 1 && count % 100 != 11)
+                return "раз";
+            else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20))
+                return "раза";
+            else
+                return "раз";
+        }
+        
+        private void StartSortingExperiments()
+        {
+            // Список размеров текстов и соответствующих файлов
+            var fileSizes = new List<int> { 100, 500, 1000, 2000, 5000, 10000, 20000 };
+            var results = new List<(int WordCount, double QuickSortTime, double RadixSortTime)>();
+
+            foreach (var size in fileSizes)
+            {
+                string filePath = Path.Combine("Resources", $"Text_{size}.txt");
+
+                if (!File.Exists(filePath))
+                {
+                    MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    continue;
+                }
+
+                try
+                {
+                    // Чтение слов из файла
+                    var words = new WordSorter(new QuickSortSorter()).ReadWordsFromFile(filePath);
+
+                    // Измерение времени для QuickSort
+                    var quickSortSorter = new QuickSortSorter();
+                    var stopwatchQuick = Stopwatch.StartNew();
+                    var quickSorted = quickSortSorter.Sort(new List<string>(words));
+                    stopwatchQuick.Stop();
+                    double quickSortTime = stopwatchQuick.Elapsed.TotalSeconds;
+
+                    // Измерение времени для RadixSort
+                    var radixSortSorter = new RadixSortSorter();
+                    var stopwatchRadix = Stopwatch.StartNew();
+                    var radixSorted = radixSortSorter.Sort(new List<string>(words));
+                    stopwatchRadix.Stop();
+                    double radixSortTime = stopwatchRadix.Elapsed.TotalSeconds;
+
+                    // Добавление результатов
+                    results.Add((size, quickSortTime, radixSortTime));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка при обработке файла {filePath}: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+
+            // Формирование таблицы с увеличенной шириной столбцов
+            var tableBuilder = new StringBuilder();
+            tableBuilder.AppendLine(string.Format("{0,-20} {1,-25} {2,-25}", "Количество слов", "QuickSort (с)", "RadixSort (с)"));
+            tableBuilder.AppendLine(new string('-', 70));
+
+            foreach (var result in results)
+            {
+                tableBuilder.AppendLine(string.Format("{0,-20} {1,-25:F4} {2,-25:F4}", result.WordCount, result.QuickSortTime, result.RadixSortTime));
+            }
+
+            // Отображение таблицы
+            Table2.Text = tableBuilder.ToString();
+            Table2.Visibility = Visibility.Visible;
+        }
     }
 }

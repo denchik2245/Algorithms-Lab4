@@ -46,6 +46,14 @@
       <Content Include="Resources\Chemical elements.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <None Remove="Resources\Text_10000.txt" />
+      <Content Include="Resources\Text_10000.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Resources\Text_20000.txt" />
+      <Content Include="Resources\Text_20000.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>
