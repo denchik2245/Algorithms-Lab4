@@ -1,46 +1,33 @@
 ﻿using System.IO;
 
-public class TableRow
-{
-    public Dictionary<string, string> Fields { get; set; }
-
-    public TableRow()
-    {
-        Fields = new Dictionary<string, string>();
-    }
-
-    public string this[string key]
-    {
-        get => Fields.ContainsKey(key) ? Fields[key] : null;
-        set => Fields[key] = value;
-    }
-}
-
 public class Table
 {
-    public List<TableRow> Rows { get; set; }
-    public List<string> Columns { get; set; }
+    public List<string> Columns { get; set; } = new List<string>();
+    public List<Dictionary<string, string>> Rows { get; set; } = new List<Dictionary<string, string>>();
 
-    public Table()
-    {
-        Rows = new List<TableRow>();
-        Columns = new List<string>();
-    }
-
+    // Загрузка таблицы из файла
     public static Table LoadFromFile(string filePath)
     {
-        var table = new Table();
+        Table table = new Table();
         var lines = File.ReadAllLines(filePath);
-        table.Columns = lines[0].Split(',').ToList();
 
-        foreach (var line in lines.Skip(1))
+        if (lines.Length == 0)
+            throw new Exception("Файл пуст.");
+
+        // Парсинг заголовков
+        table.Columns = lines[0].Split(',').Select(h => h.Trim()).ToList();
+
+        // Парсинг строк данных
+        for (int i = 1; i < lines.Length; i++)
         {
-            var row = new TableRow();
-            var values = line.Split(',');
+            var values = lines[i].Split(',').Select(v => v.Trim()).ToList();
+            if (values.Count != table.Columns.Count)
+                throw new Exception($"Несоответствие количества столбцов в строке {i + 1}.");
 
-            for (int i = 0; i < table.Columns.Count; i++)
+            Dictionary<string, string> row = new Dictionary<string, string>();
+            for (int j = 0; j < table.Columns.Count; j++)
             {
-                row[table.Columns[i]] = values[i];
+                row[table.Columns[j]] = values[j];
             }
             table.Rows.Add(row);
         }
@@ -48,13 +35,24 @@ public class Table
         return table;
     }
 
+    // Сохранение таблицы в файл
     public void SaveToFile(string filePath)
     {
-        using var writer = new StreamWriter(filePath);
-        writer.WriteLine(string.Join(",", Columns));
-        foreach (var row in Rows)
+        using (StreamWriter writer = new StreamWriter(filePath))
         {
-            writer.WriteLine(string.Join(",", Columns.Select(col => row[col])));
+            // Запись заголовков
+            writer.WriteLine(string.Join(", ", Columns));
+
+            // Запись строк данных
+            foreach (var row in Rows)
+            {
+                List<string> values = new List<string>();
+                foreach (var column in Columns)
+                {
+                    values.Add(row[column]);
+                }
+                writer.WriteLine(string.Join(", ", values));
+            }
         }
     }
 }
