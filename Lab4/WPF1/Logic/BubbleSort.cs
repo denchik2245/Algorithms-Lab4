@@ -3,7 +3,7 @@
     public class BubbleSort : ISortingAlgorithm
     {
         public event Action<int[]> OnStepCompleted;
-        public event Action<int, int, string> OnComparison;
+        public event Action<int, int, int> OnComparison;
         public event Action<int, int> OnSwap;
         public event Action<int[]> OnFinalizedElements;
         public event Action SortingCompleted;
@@ -34,7 +34,7 @@
                         return;
 
                     OnExplanation?.Invoke($"Сравниваем {array[j]} и {array[j + 1]}");
-                    OnComparison?.Invoke(j, j + 1, "");
+                    OnComparison?.Invoke(j, j + 1, -1);
                     Thread.Sleep(delay);
 
                     if (array[j] > array[j + 1])
@@ -59,7 +59,7 @@
 
                 if (!swapped)
                 {
-                    OnExplanation?.Invoke("Массив уже отсортирован, завершаем раннее");
+                    OnExplanation?.Invoke("Массив отсортирован");
                     break;
                 }
             }

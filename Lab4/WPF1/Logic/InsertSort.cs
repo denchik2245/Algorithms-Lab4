@@ -3,7 +3,7 @@
 public class InsertSort : ISortingAlgorithm
 {
     public event Action<int[]> OnStepCompleted;
-    public event Action<int, int, string> OnComparison;
+    public event Action<int, int, int> OnComparison;
     public event Action<int, int> OnSwap;
     public event Action<int[]> OnFinalizedElements;
     public event Action SortingCompleted;
@@ -42,12 +42,10 @@ public class InsertSort : ISortingAlgorithm
                     return;
 
                 pauseEvent.Wait();
-
-                // Подсветка элементов
-                OnComparison?.Invoke(j - 1, j, $"{array[j]} < {array[j - 1]}, меняем местами");
+                
+                OnComparison?.Invoke(j - 1, j, -1);
                 Thread.Sleep(delay);
-
-                // Обмен элементов
+                
                 int temp = array[j];
                 array[j] = array[j - 1];
                 array[j - 1] = temp;

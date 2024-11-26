@@ -7,6 +7,7 @@ namespace WPF1
         private int _value;
         private bool _isFinalized;
         private bool _isComparing;
+        private bool _isNode; // Добавлено свойство IsNode
         private double _xOffset; // Свойство для смещения по оси X
 
         public int Value
@@ -44,6 +45,19 @@ namespace WPF1
                 {
                     _isComparing = value;
                     OnPropertyChanged(nameof(IsComparing));
+                }
+            }
+        }
+
+        public bool IsNode // Реализация свойства IsNode
+        {
+            get => _isNode;
+            set
+            {
+                if (_isNode != value)
+                {
+                    _isNode = value;
+                    OnPropertyChanged(nameof(IsNode));
                 }
             }
         }

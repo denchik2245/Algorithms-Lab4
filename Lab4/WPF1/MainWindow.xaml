@@ -140,6 +140,29 @@
                     </DataTrigger.ExitActions>
                 </DataTrigger>
 
+                <DataTrigger Binding="{Binding IsNode}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                    To="IndianRed"
+                                    Duration="0:0:0.3" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation
+                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                    To="White"
+                                    Duration="0:0:0.3" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+                
                 <!-- Триггер для свойства IsFinalized -->
                 <DataTrigger Binding="{Binding IsFinalized}" Value="True">
                     <DataTrigger.EnterActions>
@@ -254,6 +277,7 @@
                                   SelectionChanged="TaskSelector_SelectionChanged">
                             <ComboBoxItem Content="BubbleSort" IsSelected="True" />
                             <ComboBoxItem Content="InsertSort" />
+                            <ComboBoxItem Content="HeapSort" />
                             <ComboBoxItem Content="QuickSort" />
                             <ComboBoxItem Content="Сведения о государствах" />
                             <ComboBoxItem Content="Сортировка текста (100 слов)" />

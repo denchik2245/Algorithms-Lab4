@@ -21,6 +21,7 @@ namespace WPF1
         private string countryFilePath = "Resources/Country.txt";
         private string outputFilePath = "Resources/SortedCountries.txt";
         private CountrySorter countrySorter;
+        private bool isAnimating = false;
 
         public MainWindow()
         {
@@ -40,9 +41,20 @@ namespace WPF1
         
         private void TaskSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded) return;
-            OutputTextBox.Clear();
+            if (!IsLoaded) return; // Предотвращаем вызов кода до полной загрузки окна
 
+            // Сбрасываем визуализацию массива
+            if (initialNumbers != null && initialNumbers.Count > 0)
+            {
+                numbers = new ObservableCollection<NumberItem>(
+                    initialNumbers.Select(num => new NumberItem { Value = num })
+                );
+                ArrayDisplay.ItemsSource = null;
+                ArrayDisplay.ItemsSource = numbers;
+            }
+
+            // Остальная логика обработки выбора пункта меню
+            OutputTextBox.Clear();
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
             if (TextSortingTasks.Contains(selectedTask))
@@ -108,6 +120,7 @@ namespace WPF1
 
                 string[] lines = File.ReadAllText(filePath)
                     .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                
                 if (lines.Length > 16)
                 {
                     MessageBox.Show("Файл содержит больше 16 чисел. Используются только первые 16.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -127,9 +140,8 @@ namespace WPF1
                     })
                 );
 
-                ArrayDisplay.ItemsSource = numbers;
-                
                 initialNumbers = numbers.Select(n => n.Value).ToList();
+                ArrayDisplay.ItemsSource = numbers;
             }
             catch (Exception ex)
             {
@@ -233,15 +245,53 @@ namespace WPF1
 
                     ResetArrayVisuals();
 
-                    // Загрузка массива из файла на UI-потоке
-                    LoadArrayFromFile("Resources/ArrayForVisual.txt");
+                    // Проверяем ввод массива
+                    string inputArrayText = ArrayInputTextBox.Text; // Предполагается, что ArrayInputTextBox — это TextBox в ArrayInputPanel
+                    if (string.IsNullOrWhiteSpace(inputArrayText))
+                    {
+                        LoadArrayFromFile("Resources/ArrayForVisual.txt");
+                    }
+                    else
+                    {
+                        try
+                        {
+                            numbers = new ObservableCollection<NumberItem>(
+                                inputArrayText
+                                    .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(num =>
+                                    {
+                                        if (int.TryParse(num, out int value))
+                                        {
+                                            return new NumberItem { Value = value };
+                                        }
+                                        else
+                                        {
+                                            throw new FormatException($"Неверный формат числа: '{num}'");
+                                        }
+                                    })
+                            );
 
-                    // Проверка, что массив загружен корректно
+                            initialNumbers = numbers.Select(n => n.Value).ToList();
+                            
+                            // Обновляем визуализацию после изменения numbers
+                            ArrayDisplay.ItemsSource = null;
+                            ArrayDisplay.ItemsSource = numbers;
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Ошибка ввода массива: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+                    }
+
                     if (numbers == null || numbers.Count == 0)
                     {
-                        MessageBox.Show("Массив для сортировки не загружен.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Массив для сортировки не задан.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
+
+                    ArrayDisplay.ItemsSource = numbers;
+                    initialNumbers = numbers.Select(n => n.Value).ToList();
 
                     // Извлечение массива для сортировки
                     int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
@@ -251,20 +301,28 @@ namespace WPF1
                         "BubbleSort" => new BubbleSort(),
                         "QuickSort" => new QuickSort(),
                         "InsertSort" => new InsertSort(),
+                        "HeapSort" => new HeapSort(),
                         _ => throw new NotImplementedException("Алгоритм не реализован.")
                     };
-                    
+
                     // Подписки на события
                     sortingAlgorithm.OnStepCompleted += UpdateArray;
                     sortingAlgorithm.SortingCompleted += OnSortingCompleted;
                     sortingAlgorithm.OnComparison += ShowComparison;
                     sortingAlgorithm.OnExplanation += ShowExplanation;
 
-                    // Подписка на событие OnSwap в зависимости от алгоритма
+                    // Специфичные подписки для разных алгоритмов
                     if (sortingAlgorithm is BubbleSort)
                     {
                         sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
                         sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
+                    }
+                    else if (sortingAlgorithm is HeapSort)
+                    {
+                        sortingAlgorithm.OnComparison += async (nodeIndex, leftChildIndex, rightChildIndex) =>
+                        {
+                            await HandleCompareAndSwap(nodeIndex, leftChildIndex, rightChildIndex);
+                        };
                     }
                     else if (sortingAlgorithm is InsertSort)
                     {
@@ -272,7 +330,7 @@ namespace WPF1
                     }
                     
                     isSortingStarted = true;
-                    
+
                     sortingThread = new Thread(() =>
                     {
                         try
@@ -359,21 +417,86 @@ namespace WPF1
             }
         }
         
-        private void UpdateArray(int[] array)
+        private void UpdateArray(int[] newArray)
         {
+            if (isAnimating) return;
+
             Dispatcher.Invoke(() =>
             {
-                for (int i = 0; i < array.Length; i++)
+                for (int i = 0; i < numbers.Count; i++)
                 {
-                    if (numbers[i].Value != array[i])
-                    {
-                        numbers[i].Value = array[i];
-                    }
+                    numbers[i].Value = newArray[i];
                 }
             });
         }
         
-        private async void ShowComparison(int index1, int index2, string message)
+        private async void ShowExplanation(string message)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                OutputTextBox.AppendText($"{message}\n");
+                OutputTextBox.ScrollToEnd();
+            });
+
+            await Task.Delay(delay);
+        }
+        
+        private async Task HighlightElements(int index1, int index2 = -1)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var item in numbers)
+                {
+                    item.IsComparing = false;
+                }
+                
+                if (index1 >= 0 && index1 < numbers.Count)
+                {
+                    numbers[index1].IsComparing = true;
+                }
+
+                if (index2 >= 0 && index2 < numbers.Count)
+                {
+                    numbers[index2].IsComparing = true;
+                }
+            });
+
+            await Task.Delay(300);
+        }
+        
+        private async Task HandleCompareAndSwap(int nodeIndex, int leftChildIndex, int rightChildIndex)
+        {
+            int largestIndex = nodeIndex;
+
+            if (leftChildIndex >= 0 && leftChildIndex < numbers.Count &&
+                numbers[leftChildIndex].Value > numbers[largestIndex].Value)
+            {
+                largestIndex = leftChildIndex;
+            }
+
+            if (rightChildIndex >= 0 && rightChildIndex < numbers.Count &&
+                numbers[rightChildIndex].Value > numbers[largestIndex].Value)
+            {
+                largestIndex = rightChildIndex;
+            }
+            
+            if (largestIndex != nodeIndex)
+            {
+                await HighlightElements(nodeIndex, largestIndex);
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    (numbers[nodeIndex].Value, numbers[largestIndex].Value) =
+                        (numbers[largestIndex].Value, numbers[nodeIndex].Value);
+                });
+            }
+            else
+            {
+                await HighlightElements(nodeIndex);
+            }
+        }
+        
+        private async void ShowComparison(int index1, int index2, int unused)
         {
             await Dispatcher.InvokeAsync(() =>
             {
@@ -399,15 +522,20 @@ namespace WPF1
             });
         }
         
-        private async void ShowExplanation(string message)
+        //Обновление элементов списка, помечая их как законченные.
+        private void ShowFinalizedElements(int[] finalizedArray)
         {
-            await Dispatcher.InvokeAsync(() =>
+            Dispatcher.Invoke(() =>
             {
-                OutputTextBox.AppendText($"{message}\n");
-                OutputTextBox.ScrollToEnd();
+                for (int i = 0; i < numbers.Count; i++)
+                {
+                    if (finalizedArray[i] == 1)
+                    {
+                        numbers[i].IsFinalized = true;
+                        numbers[i].IsComparing = false;
+                    }
+                }
             });
-
-            await Task.Delay(delay);
         }
         
         //Анимация для BubbleSort
@@ -599,22 +727,6 @@ namespace WPF1
                 }
             }
             return null;
-        }
-        
-        //Обновление элементов списка, помечая их как законченные.
-        private void ShowFinalizedElements(int[] finalizedArray)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                for (int i = 0; i < numbers.Count; i++)
-                {
-                    if (finalizedArray[i] == 1)
-                    {
-                        numbers[i].IsFinalized = true;
-                        numbers[i].IsComparing = false;
-                    }
-                }
-            });
         }
         
         //Сортировка стран
