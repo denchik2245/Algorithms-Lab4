@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -20,7 +21,6 @@ namespace WPF1
         private Thread sortingThread;
         private string countryFilePath = "Resources/Country.txt";
         private string outputFilePath = "Resources/SortedCountries.txt";
-        private CountrySorter countrySorter;
         private bool isAnimating = false;
 
         public MainWindow()
@@ -41,9 +41,8 @@ namespace WPF1
         
         private void TaskSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded) return; // Предотвращаем вызов кода до полной загрузки окна
-
-            // Сбрасываем визуализацию массива
+            if (!IsLoaded) return;
+            
             if (initialNumbers != null && initialNumbers.Count > 0)
             {
                 numbers = new ObservableCollection<NumberItem>(
@@ -52,8 +51,7 @@ namespace WPF1
                 ArrayDisplay.ItemsSource = null;
                 ArrayDisplay.ItemsSource = numbers;
             }
-
-            // Остальная логика обработки выбора пункта меню
+            
             OutputTextBox.Clear();
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
@@ -65,16 +63,17 @@ namespace WPF1
                 StopButton.Visibility = Visibility.Collapsed;
                 DelayInputPanel.Visibility = Visibility.Collapsed;
                 ArrayInputPanel.Visibility = Visibility.Collapsed;
-
                 CustomFilePathPanel.Visibility = Visibility.Visible;
                 AlgorithmSelectorPanel.Visibility = Visibility.Visible;
 
-                ContinentPanel.Visibility = Visibility.Collapsed;
-                AttributePanel.Visibility = Visibility.Collapsed;
+                SortPanel.Visibility = Visibility.Collapsed;
+                FilterPanel.Visibility = Visibility.Collapsed;
+                MethodSelectorPanel.Visibility = Visibility.Collapsed;
+                CustomFilePathPanel.Visibility = Visibility.Collapsed;
 
                 OutputTextBox.Visibility = Visibility.Visible;
             }
-            else if (selectedTask == "Сведения о государствах")
+            else if (selectedTask == "Фильтрация таблиц")
             {
                 ArrayDisplay.Visibility = Visibility.Collapsed;
                 StopButton.Visibility = Visibility.Collapsed;
@@ -83,8 +82,10 @@ namespace WPF1
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
 
-                ContinentPanel.Visibility = Visibility.Visible;
-                AttributePanel.Visibility = Visibility.Visible;
+                SortPanel.Visibility = Visibility.Visible;
+                FilterPanel.Visibility = Visibility.Visible;
+                MethodSelectorPanel.Visibility = Visibility.Visible;
+                CustomFilePathPanel.Visibility = Visibility.Visible;
 
                 OutputTextBox.Visibility = Visibility.Visible;
                 OutputTextBox.Height = 700;
@@ -100,8 +101,10 @@ namespace WPF1
 
                 CustomFilePathPanel.Visibility = Visibility.Collapsed;
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
-                ContinentPanel.Visibility = Visibility.Collapsed;
-                AttributePanel.Visibility = Visibility.Collapsed;
+                SortPanel.Visibility = Visibility.Collapsed;
+                FilterPanel.Visibility = Visibility.Collapsed;
+                MethodSelectorPanel.Visibility = Visibility.Collapsed;
+                CustomFilePathPanel.Visibility = Visibility.Collapsed;
 
                 OutputTextBox.Visibility = Visibility.Visible;
             }
@@ -147,6 +150,29 @@ namespace WPF1
             {
                 MessageBox.Show($"Ошибка чтения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+        
+        //Кнопка "Выбрать файл"
+        private void OpenFileButton_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Выберите файл",
+                Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                CustomFilePathTextBox.Text = openFileDialog.FileName;
+                PopulateSelectors(openFileDialog.FileName);
+            }
+        }
+        
+        //Получить путь к файлу
+        private string GetFilePath()
+        {
+            string customPath = CustomFilePathTextBox?.Text;
+            return string.IsNullOrWhiteSpace(customPath) ? "Resources/Country.txt" : customPath;
         }
         
         //Сортировка текста
@@ -211,9 +237,9 @@ namespace WPF1
         {
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
-            if (selectedTask == "Сведения о государствах")
+            if (selectedTask == "Фильтрация таблиц")
             {
-                StartCountrySorting();
+                StartSorting();
             }
             else if (selectedTask.StartsWith("Сортировка текста"))
             {
@@ -244,9 +270,7 @@ namespace WPF1
                     }
 
                     ResetArrayVisuals();
-
-                    // Проверяем ввод массива
-                    string inputArrayText = ArrayInputTextBox.Text; // Предполагается, что ArrayInputTextBox — это TextBox в ArrayInputPanel
+                    string inputArrayText = ArrayInputTextBox.Text;
                     if (string.IsNullOrWhiteSpace(inputArrayText))
                     {
                         LoadArrayFromFile("Resources/ArrayForVisual.txt");
@@ -272,8 +296,6 @@ namespace WPF1
                             );
 
                             initialNumbers = numbers.Select(n => n.Value).ToList();
-                            
-                            // Обновляем визуализацию после изменения numbers
                             ArrayDisplay.ItemsSource = null;
                             ArrayDisplay.ItemsSource = numbers;
                         }
@@ -292,8 +314,7 @@ namespace WPF1
 
                     ArrayDisplay.ItemsSource = numbers;
                     initialNumbers = numbers.Select(n => n.Value).ToList();
-
-                    // Извлечение массива для сортировки
+                    
                     int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
 
                     sortingAlgorithm = selectedAlgorithm switch
@@ -304,14 +325,12 @@ namespace WPF1
                         "HeapSort" => new HeapSort(),
                         _ => throw new NotImplementedException("Алгоритм не реализован.")
                     };
-
-                    // Подписки на события
+                    
                     sortingAlgorithm.OnStepCompleted += UpdateArray;
                     sortingAlgorithm.SortingCompleted += OnSortingCompleted;
                     sortingAlgorithm.OnComparison += ShowComparison;
                     sortingAlgorithm.OnExplanation += ShowExplanation;
-
-                    // Специфичные подписки для разных алгоритмов
+                    
                     if (sortingAlgorithm is BubbleSort)
                     {
                         sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
@@ -599,12 +618,10 @@ namespace WPF1
 
             await Dispatcher.InvokeAsync(() =>
             {
-                // Обновляем значения в списке numbers
                 int temp = numbers[index1].Value;
                 numbers[index1].Value = numbers[index2].Value;
                 numbers[index2].Value = temp;
                 
-                // Сбрасываем трансформации
                 if (border1.RenderTransform is TranslateTransform tt1)
                 {
                     tt1.BeginAnimation(TranslateTransform.XProperty, null);
@@ -680,7 +697,6 @@ namespace WPF1
 
             await Dispatcher.InvokeAsync(() =>
             {
-                // Сбрасываем трансформации
                 if (border1.RenderTransform is TranslateTransform tt1)
                 {
                     tt1.BeginAnimation(TranslateTransform.XProperty, null);
@@ -729,36 +745,234 @@ namespace WPF1
             return null;
         }
         
-        //Сортировка стран
-        private void StartCountrySorting()
+        private void PopulateSelectors(string filePath)
         {
             try
             {
-                if (ContinentSelector.SelectedItem is ComboBoxItem selectedContinentItem &&
-                    AttributeSelector.SelectedItem is ComboBoxItem selectedAttributeItem)
+                var lines = File.ReadAllLines(filePath);
+                if (lines.Length < 2)
                 {
-                    string continent = selectedContinentItem.Content.ToString();
-                    string sortAttribute = selectedAttributeItem.Content.ToString();
-                    
-                    countrySorter = new CountrySorter(countryFilePath);
-                    var sortedCountries = countrySorter.FilterAndSort(continent, sortAttribute);
-                    countrySorter.SaveToFile(sortedCountries, outputFilePath);
-                    
-                    var outputBuilder = new System.Text.StringBuilder();
-                    outputBuilder.AppendLine($"{continent}\n");
+                    MessageBox.Show("Файл должен содержать заголовок и хотя бы одну строку данных.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
 
-                    foreach (var country in sortedCountries)
+                var headers = lines[0].Split(',');
+
+                if (headers.Length < 2)
+                {
+                    MessageBox.Show("Файл должен содержать как минимум два столбца.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                
+                FilterAttributeSelector.Items.Clear();
+                var filterValues = lines.Skip(1)
+                    .Select(line => line.Split(',')[1].Trim())
+                    .Distinct()
+                    .ToList();
+
+                foreach (var value in filterValues)
+                {
+                    FilterAttributeSelector.Items.Add(new ComboBoxItem { Content = value });
+                }
+                
+                // Заполнение атрибута сортировки (первый столбец и остальные, кроме фильтрующего)
+                SortAttributeSelector.Items.Clear();
+                foreach (var header in headers.Where((h, index) => index != 1))
+                {
+                    SortAttributeSelector.Items.Add(new ComboBoxItem { Content = header });
+                }
+                
+                if (FilterAttributeSelector.Items.Count > 0)
+                    FilterAttributeSelector.SelectedIndex = 0;
+
+                if (SortAttributeSelector.Items.Count > 0)
+                    SortAttributeSelector.SelectedIndex = 0;
+
+                MessageBox.Show("Списки успешно обновлены на основе данных из файла.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка обновления меню: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        private string GetFilterColumn(string filePath)
+        {
+            var lines = File.ReadLines(filePath);
+            var headerLine = lines.FirstOrDefault();
+            if (headerLine != null)
+            {
+                var headers = headerLine.Split(',');
+                if (headers.Length >= 2)
+                {
+                    return headers[1];
+                }
+            }
+            throw new Exception("Невозможно определить фильтрующий столбец.");
+        }
+        
+        private void DisplaySortedTable(Table table, string filterValue, string sortKey, string explanation)
+        {
+            // Строим строку вывода
+            StringBuilder sb = new StringBuilder();
+
+            // Выводим значение фильтра вверху
+            sb.AppendLine(filterValue);
+            sb.AppendLine();
+
+            // Определяем числовые столбцы
+            var numericalColumns = GetNumericalColumns(table);
+
+            // Получаем названия столбцов
+            var headers = table.Columns;
+
+            // Для каждой строки формируем вывод
+            foreach (var row in table.Rows)
+            {
+                List<string> rowValues = new List<string>();
+
+                for (int i = 0; i < headers.Count; i++)
+                {
+                    var column = headers[i];
+
+                    // Пропускаем фильтрующий столбец (второй столбец)
+                    if (i == 1)
+                        continue;
+
+                    var value = row[column];
+
+                    if (numericalColumns.Contains(column))
                     {
-                        outputBuilder.AppendLine(
-                            $"{country.Name}, {country.Capital}, Площадь = {country.Area:N0} кв.км, Население = {country.Population:N0} человек"
-                        );
+                        // Добавляем параметр и значение
+                        rowValues.Add($"{column}: {FormatNumericValue(value, column)}");
                     }
-                    
-                    OutputTextBox.Text = outputBuilder.ToString();
+                    else
+                    {
+                        // Добавляем значение напрямую
+                        rowValues.Add(value);
+                    }
+                }
+
+                // Соединяем значения через запятую
+                sb.AppendLine(string.Join(", ", rowValues));
+            }
+
+            // Добавляем объяснение
+            sb.AppendLine(explanation);
+
+            // Выводим результат в интерфейсе (например, в TextBox)
+            OutputTextBox.Text = sb.ToString();
+        }
+        
+        private HashSet<string> GetNumericalColumns(Table table)
+        {
+            var numericalColumns = new HashSet<string>();
+
+            if (table.Rows.Count == 0)
+                return numericalColumns;
+
+            var culture = CultureInfo.GetCultureInfo("ru-RU");
+
+            foreach (var column in table.Columns)
+            {
+                // Пропускаем фильтрующий столбец (второй столбец)
+                if (table.Columns.IndexOf(column) == 1)
+                    continue;
+
+                bool isNumeric = true;
+
+                foreach (var row in table.Rows.Take(5)) // Проверяем первые 5 строк
+                {
+                    var value = row[column];
+                    if (!double.TryParse(value, NumberStyles.Any, culture, out _))
+                    {
+                        isNumeric = false;
+                        break;
+                    }
+                }
+
+                if (isNumeric)
+                {
+                    numericalColumns.Add(column);
+                }
+            }
+
+            return numericalColumns;
+        }
+        
+        private string FormatNumericValue(string value, string column)
+        {
+            var culture = CultureInfo.GetCultureInfo("ru-RU");
+
+            if (double.TryParse(value, NumberStyles.Any, culture, out double numericValue))
+            {
+                string formattedValue = numericValue.ToString("N0", culture); // Убираем дробную часть
+
+                // Добавляем единицы измерения в зависимости от столбца
+                if (column.Contains("Площадь"))
+                {
+                    return $"{formattedValue} кв.км";
+                }
+                else if (column.Contains("Численность населения"))
+                {
+                    return $"{formattedValue} человек";
+                }
+                else if (column.Contains("Молекулярная масса"))
+                {
+                    return $"{formattedValue} г/моль";
                 }
                 else
                 {
-                    MessageBox.Show("Выберите континент и атрибут сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return formattedValue;
+                }
+            }
+            else
+            {
+                return value;
+            }
+        }
+        
+        private void StartSorting()
+        {
+            try
+            {
+                string filePath = GetFilePath();
+
+                string filterValue = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string sortKey = (SortAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string sortingMethod = (MethodSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+
+                if (string.IsNullOrEmpty(filterValue) || string.IsNullOrEmpty(sortKey) || string.IsNullOrEmpty(sortingMethod))
+                {
+                    MessageBox.Show("Пожалуйста, выберите параметры для фильтрации, сортировки и метод сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Фильтрующий столбец всегда второй
+                string filterColumn = GetFilterColumn(filePath);
+                if (string.IsNullOrEmpty(filterColumn))
+                {
+                    MessageBox.Show("Не удалось определить фильтрующий столбец.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                string outputFilePath = "sorted_output.txt";
+
+                // Передаем выбранный метод сортировки
+                ExternalSorter.MergeSort(filePath, filterColumn, filterValue, sortKey, outputFilePath, sortingMethod);
+
+                // Генерируем объяснение сортировки
+                try
+                {
+                    string explanation = SortingExplanation.GenerateExplanation(sortingMethod, "Таблица данных", filterColumn, filterValue, sortKey);
+
+                    // Отображаем результат
+                    var sortedTable = Table.LoadFromFile(outputFilePath);
+                    DisplaySortedTable(sortedTable, filterValue, sortKey, explanation);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка в генерации объяснения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
@@ -766,5 +980,6 @@ namespace WPF1
                 MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
     }
 }

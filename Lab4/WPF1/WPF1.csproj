@@ -42,6 +42,10 @@
       <Content Include="Resources\ArrayForVisual.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <None Remove="Resources\Chemical elements.txt" />
+      <Content Include="Resources\Chemical elements.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

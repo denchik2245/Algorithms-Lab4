@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
-        Title="4 лабораторная" Width="1300" Height="900">
+        Title="4 лабораторная" Width="1500" Height="900">
 
     <Window.Resources>
         <!-- Стиль для кастомной кнопки -->
@@ -55,6 +55,34 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#A03B33" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="SelectFileButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2A2D32" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,5,10,5" />
+            <Setter Property="Width" Value="100" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}" 
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3E4146" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -240,7 +268,7 @@
             
             <!-- Поле для вывода текста -->
             <TextBox Name="OutputTextBox" 
-                     Width="1200" 
+                     Width="1400" 
                      Height="600" 
                      Margin="10" 
                      Background="#F5F5F5" 
@@ -279,7 +307,7 @@
                             <ComboBoxItem Content="InsertSort" />
                             <ComboBoxItem Content="HeapSort" />
                             <ComboBoxItem Content="QuickSort" />
-                            <ComboBoxItem Content="Сведения о государствах" />
+                            <ComboBoxItem Content="Фильтрация таблиц" />
                             <ComboBoxItem Content="Сортировка текста (100 слов)" />
                             <ComboBoxItem Content="Сортировка текста (500 слов)" />
                             <ComboBoxItem Content="Сортировка текста (1000 слов)" />
@@ -290,7 +318,7 @@
                 </StackPanel>
 
                 <!-- Основной контент -->
-                <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,5,0">
                     <!-- Поле ввода массива -->
                     <StackPanel x:Name="ArrayInputPanel" Orientation="Vertical" Margin="0,0,20,0">
                         <TextBlock x:Name="ArrayInputTextBlock" Text="Ввести свой массив (через пробел)" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
@@ -320,50 +348,61 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- Выпадающее меню для континентов -->
-                    <StackPanel x:Name="ContinentPanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,20,0">
-                        <TextBlock Text="Континент" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
-                        <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
-                            <ComboBox x:Name="ContinentSelector"
-                                      SelectedIndex="0"
-                                      FontSize="14"
-                                      FontWeight="Light"
-                                      Foreground="Black"
-                                      Background="Transparent"
-                                      BorderThickness="0"
-                                      Margin="10,0,10,0"
-                                      VerticalContentAlignment="Center"
-                                      HorizontalContentAlignment="Center">
-                                <ComboBoxItem Content="Европа" IsSelected="True" />
-                                <ComboBoxItem Content="Азия" />
-                                <ComboBoxItem Content="Африка" />
-                                <ComboBoxItem Content="Северная Америка" />
-                                <ComboBoxItem Content="Южная Америка" />
-                                <ComboBoxItem Content="Океания" />
-                            </ComboBox>
-                        </Border>
+                    <!-- Группа выпадающих меню -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,0"> <!-- Отступ между группой списков и полем ввода "Выбрать файл" -->
+                        <!-- Выпадающее меню для выбора метода -->
+                        <StackPanel x:Name="MethodSelectorPanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,12,0">
+                            <TextBlock Text="Выбор метода" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                            <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                                <ComboBox x:Name="MethodSelector"
+                                          SelectedIndex="0"
+                                          FontSize="14"
+                                          FontWeight="Light"
+                                          Foreground="Black"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Margin="10,0,10,0"
+                                          VerticalContentAlignment="Center"
+                                          HorizontalContentAlignment="Center">
+                                    <ComboBoxItem Content="Прямое слияние" IsSelected="True" />
+                                    <ComboBoxItem Content="Естественное слияние" />
+                                    <ComboBoxItem Content="Многопутевое слияние" />
+                                </ComboBox>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Выпадающее меню для Атрибута фильтрации -->
+                        <StackPanel x:Name="FilterPanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,12,0">
+                            <TextBlock Text="Атрибут фильтрации" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                            <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                                <ComboBox x:Name="FilterAttributeSelector"
+                                          FontSize="14"
+                                          FontWeight="Light"
+                                          Foreground="Black"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Margin="10,0,10,0"
+                                          VerticalContentAlignment="Center"
+                                          HorizontalContentAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel x:Name="SortPanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,0,0">
+                            <TextBlock Text="Атрибут сортировки" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                            <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
+                                <ComboBox x:Name="SortAttributeSelector"
+                                          FontSize="14"
+                                          FontWeight="Light"
+                                          Foreground="Black"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Margin="10,0,10,0"
+                                          VerticalContentAlignment="Center"
+                                          HorizontalContentAlignment="Center" />
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
 
-                    <!-- Выпадающее меню для атрибута сортировки -->
-                    <StackPanel x:Name="AttributePanel" Visibility="Collapsed" Orientation="Vertical" Margin="0,0,10,0">
-                        <TextBlock Text="Атрибут сортировки" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
-                        <Border Height="40" Width="200" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
-                            <ComboBox x:Name="AttributeSelector"
-                                      SelectedIndex="1"
-                                      FontSize="14"
-                                      FontWeight="Light"
-                                      Foreground="Black"
-                                      Background="Transparent"
-                                      BorderThickness="0"
-                                      Margin="10,0,10,0"
-                                      VerticalContentAlignment="Center"
-                                      HorizontalContentAlignment="Center">
-                                <ComboBoxItem Content="Столица" />
-                                <ComboBoxItem Content="Площадь" IsSelected="True" />
-                                <ComboBoxItem Content="Численность населения" />
-                            </ComboBox>
-                        </Border>
-                    </StackPanel>
 
                     <!-- Радиокнопки для выбора алгоритма -->
                     <StackPanel Orientation="Horizontal" Visibility="Visible" Margin="0,0,10,0">
@@ -371,7 +410,7 @@
                         <StackPanel x:Name="AlgorithmSelectorPanel" Orientation="Vertical" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="0,0,20,0">
                             <RadioButton x:Name="BaseAlgorithmRadioButton"
                                          GroupName="SortAlgorithm"
-                                         Content="Базовый или усовершенствованный"
+                                         Content="QuickSort"
                                          IsChecked="True"
                                          FontSize="16" 
                                          FontWeight="Light" 
@@ -386,19 +425,36 @@
                                          VerticalContentAlignment="Center"
                                          Style="{StaticResource CustomRadioButtonStyle}" />
                         </StackPanel>
-
+                        
                         <!-- Поле для выбора пути к файлу -->
                         <StackPanel x:Name="CustomFilePathPanel" Orientation="Vertical" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="0,0,10,0">
-                            <TextBlock Text="Другой путь к файлу с текстом" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
-                            <Border Height="40" Width="300" Background="White" CornerRadius="10" Padding="0" Margin="0,10,0,0">
-                                <TextBox x:Name="CustomFilePathTextBox" 
-                                         FontSize="16" 
-                                         FontWeight="Light" 
-                                         Foreground="Black" 
-                                         Background="Transparent" 
-                                         BorderThickness="0" 
-                                         Margin="15,10,1,10" />
-                            </Border>
+                            <TextBlock Text="Выбрать файл" Foreground="Black" FontSize="16" FontWeight="Light" TextWrapping="Wrap" />
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Укороченное текстовое поле -->
+                                <Border Grid.Column="0" Height="40" Width="120" Background="White" CornerRadius="10" Padding="0">
+                                    <TextBox x:Name="CustomFilePathTextBox" 
+                                             FontSize="12" 
+                                             FontWeight="Light" 
+                                             Foreground="Black" 
+                                             Background="Transparent" 
+                                             BorderThickness="0" 
+                                             Margin="15,10,1,10" />
+                                </Border>
+                                
+                                <Button Grid.Column="1" Content="Выбрать файл"
+                                        FontSize="14"
+                                        FontWeight="Medium"
+                                        Width="120"
+                                        HorizontalAlignment="Right"
+                                        Margin="10,0,0,0"
+                                        Click="OpenFileButton_Click"
+                                        Style="{StaticResource SelectFileButtonStyle}" />
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
 
@@ -408,13 +464,14 @@
                             Content="Начать" 
                             FontSize="16" 
                             FontWeight="Medium" 
-                            Margin="20,0,5,0"
+                            Margin="5,0,5,0"
                             Style="{StaticResource CustomButtonStyle}"/>
                     <Button x:Name="StopButton"
                             Content="Стоп" 
                             Click="StopButton_Click"
                             FontSize="16" 
                             FontWeight="Medium" 
+                            Margin="5,0,0,0"
                             Style="{StaticResource StopButtonStyle}" />
                 </StackPanel>
             </Grid>
