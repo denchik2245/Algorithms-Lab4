@@ -27,7 +27,7 @@
             while (stack.Count > 0)
             {
                 pauseEvent.Wait();
-                
+
                 if (isStopped)
                 {
                     return;
@@ -36,13 +36,14 @@
                 var (low, high) = stack.Pop();
                 if (low < high)
                 {
+                    OnExplanation?.Invoke($"Выбираем подмассив с индексами от {low} до {high}.");
                     int pivotIndex = Partition(array, low, high, delay);
                     if (pivotIndex == -1)
                         return;
-                    
+
                     finalized[pivotIndex] = true;
                     OnFinalizedElements?.Invoke(GetFinalizedIndices());
-                    
+
                     stack.Push((low, pivotIndex - 1));
                     stack.Push((pivotIndex + 1, high));
                 }
@@ -50,16 +51,19 @@
                 {
                     finalized[low] = true;
                     OnFinalizedElements?.Invoke(GetFinalizedIndices());
+                    OnExplanation?.Invoke($"Элемент с индексом {low} окончательно размещен.");
                 }
             }
 
             isResumed = false;
             SortingCompleted?.Invoke();
+            OnExplanation?.Invoke("Сортировка завершена.");
         }
 
         private int Partition(int[] array, int low, int high, int delay)
         {
             int pivot = array[high];
+            OnExplanation?.Invoke($"Выбираем опорный элемент {pivot} (индекс {high}).");
             int i = low - 1;
 
             for (int j = low; j < high; j++)
@@ -69,25 +73,29 @@
                 if (isStopped)
                     return -1;
 
-                // Передаем -1 как индикатор обычного сравнения
                 OnComparison?.Invoke(j, high, -1);
+                OnExplanation?.Invoke($"Сравниваем элемент {array[j]} (индекс {j}) с опорным {pivot}.");
+
                 Thread.Sleep(delay);
 
                 if (array[j] < pivot)
                 {
                     i++;
+                    OnSwap?.Invoke(i, j);
+                    OnExplanation?.Invoke($"Меняем местами {array[i]} (индекс {i}) и {array[j]} (индекс {j}).");
                     (array[i], array[j]) = (array[j], array[i]);
                     OnStepCompleted?.Invoke((int[])array.Clone());
                     Thread.Sleep(delay);
                 }
             }
 
+            OnSwap?.Invoke(i + 1, high);
+            OnExplanation?.Invoke($"Меняем опорный элемент {pivot} с элементом {array[i + 1]} (индекс {i + 1}).");
             (array[i + 1], array[high]) = (array[high], array[i + 1]);
-            // Передаем -2 как индикатор перемещения опорного элемента
-            OnComparison?.Invoke(i + 1, high, -2);
             OnStepCompleted?.Invoke((int[])array.Clone());
             Thread.Sleep(delay);
 
+            OnExplanation?.Invoke($"Элемент {array[i + 1]} (индекс {i + 1}) установлен на окончательное место.");
             return i + 1;
         }
 
@@ -100,7 +108,7 @@
         {
             pauseEvent.Set();
         }
-        
+
         private int[] GetFinalizedIndices()
         {
             List<int> finalizedIndices = new List<int>();

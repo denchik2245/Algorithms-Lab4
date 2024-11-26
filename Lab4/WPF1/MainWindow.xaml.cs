@@ -283,16 +283,13 @@ namespace WPF1
                         sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
                         sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
                     }
-                    else if (sortingAlgorithm is HeapSort)
-                    {
-                        sortingAlgorithm.OnComparison += async (nodeIndex, leftChildIndex, rightChildIndex) =>
-                        {
-                            await HandleCompareAndSwap(nodeIndex, leftChildIndex, rightChildIndex);
-                        };
-                    }
                     else if (sortingAlgorithm is InsertSort)
                     {
                         sortingAlgorithm.OnSwap += AnimateSwapHandlerForInsertSort;
+                    }
+                    else if (sortingAlgorithm is QuickSort)
+                    {
+                        sortingAlgorithm.OnComparison -= ShowComparison;
                     }
                     
                     isSortingStarted = true;
@@ -476,7 +473,7 @@ namespace WPF1
             await Task.Delay(300);
         }
         
-        //Подсветка для BubbleSort
+        //Подсветка
         private async void ShowComparison(int index1, int index2, int unused)
         {
             await Dispatcher.InvokeAsync(() =>
@@ -945,8 +942,7 @@ namespace WPF1
                 MessageBox.Show($"Файл не найден: {filePath}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
-            // Определяем алгоритм сортировки
+            
             IWordSorter sorterAlgorithm = BaseAlgorithmRadioButton.IsChecked == true
                 ? new QuickSortSorter()
                 : RadixSortRadioButton.IsChecked == true
@@ -957,11 +953,8 @@ namespace WPF1
             {
                 WordSorter wordSorter = new WordSorter(sorterAlgorithm);
                 var sortedWordsWithCounts = wordSorter.SortWords(filePath);
-
-                // Формируем вывод для первого поля с повторяющимися словами
+                
                 AllWordsTextBox.Text = string.Join(Environment.NewLine, sortedWordsWithCounts.SelectMany(wc => Enumerable.Repeat(wc.Word, wc.Count)));
-
-                // Формируем вывод для второго поля с уникальными словами и количеством
                 UniqueWordsTextBox.Text = string.Join(Environment.NewLine, sortedWordsWithCounts
                     .Select(wc => $"{wc.Word} (Встречалось {wc.Count} {GetRussianPlural(wc.Count)})"));
             }
@@ -984,7 +977,6 @@ namespace WPF1
         
         private void StartSortingExperiments()
         {
-            // Список размеров текстов и соответствующих файлов
             var fileSizes = new List<int> { 100, 500, 1000, 2000, 5000, 10000, 20000 };
             var results = new List<(int WordCount, double QuickSortTime, double RadixSortTime)>();
 
@@ -1000,24 +992,20 @@ namespace WPF1
 
                 try
                 {
-                    // Чтение слов из файла
                     var words = new WordSorter(new QuickSortSorter()).ReadWordsFromFile(filePath);
-
-                    // Измерение времени для QuickSort
+                    
                     var quickSortSorter = new QuickSortSorter();
                     var stopwatchQuick = Stopwatch.StartNew();
                     var quickSorted = quickSortSorter.Sort(new List<string>(words));
                     stopwatchQuick.Stop();
                     double quickSortTime = stopwatchQuick.Elapsed.TotalSeconds;
-
-                    // Измерение времени для RadixSort
+                    
                     var radixSortSorter = new RadixSortSorter();
                     var stopwatchRadix = Stopwatch.StartNew();
                     var radixSorted = radixSortSorter.Sort(new List<string>(words));
                     stopwatchRadix.Stop();
                     double radixSortTime = stopwatchRadix.Elapsed.TotalSeconds;
-
-                    // Добавление результатов
+                    
                     results.Add((size, quickSortTime, radixSortTime));
                 }
                 catch (Exception ex)
@@ -1025,18 +1013,16 @@ namespace WPF1
                     MessageBox.Show($"Ошибка при обработке файла {filePath}: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-
-            // Формирование таблицы с увеличенной шириной столбцов
+            
             var tableBuilder = new StringBuilder();
-            tableBuilder.AppendLine(string.Format("{0,-20} {1,-25} {2,-25}", "Количество слов", "QuickSort (с)", "RadixSort (с)"));
+            tableBuilder.AppendLine(string.Format("{0,-20} {1,-25} {2,-25}", "Количество слов", "QuickSort (сек)", "RadixSort (сек)"));
             tableBuilder.AppendLine(new string('-', 70));
 
             foreach (var result in results)
             {
                 tableBuilder.AppendLine(string.Format("{0,-20} {1,-25:F4} {2,-25:F4}", result.WordCount, result.QuickSortTime, result.RadixSortTime));
             }
-
-            // Отображение таблицы
+            
             Table2.Text = tableBuilder.ToString();
             Table2.Visibility = Visibility.Visible;
         }

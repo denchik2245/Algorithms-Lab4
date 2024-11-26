@@ -12,6 +12,9 @@ public class HeapSort : ISortingAlgorithm
     private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true);
     private volatile bool isStopped = false;
 
+    private int buildHeapStep = 1;
+    private int sortStep = 1;
+
     public void Sort(int[] array, int delay)
     {
         Task.Run(() => HeapSortAlgorithm(array, delay));
@@ -20,22 +23,20 @@ public class HeapSort : ISortingAlgorithm
     private void HeapSortAlgorithm(int[] array, int delay)
     {
         int n = array.Length;
-        int[] finalized = new int[array.Length];
+
+        // Исходный массив
+        OnExplanation?.Invoke($"Исходный массив: {string.Join(",", array)}\n");
 
         // Этап 1: Построение кучи
-        OnExplanation?.Invoke("Этап 1: Построение кучи\n");
-        OnExplanation?.Invoke($"Входной массив: {FormatArray(array)}.");
-
+        OnExplanation?.Invoke("Построение кучи:");
         for (int i = n / 2 - 1; i >= 0; i--)
         {
-            Heapify(array, n, i, delay, $"Узел с индексом {i}");
+            Heapify(array, n, i, delay, isBuildingHeap: true);
         }
-
-        OnExplanation?.Invoke($"Теперь массив превращен в max-heap: {FormatArray(array)}.\n");
+        OnExplanation?.Invoke($"Массив: {string.Join(",", array)}\n");
 
         // Этап 2: Сортировка
-        OnExplanation?.Invoke("Этап 2: Сортировка\n");
-
+        OnExplanation?.Invoke("Сортировка:");
         for (int i = n - 1; i >= 0; i--)
         {
             pauseEvent.Wait();
@@ -43,80 +44,101 @@ public class HeapSort : ISortingAlgorithm
             if (isStopped)
                 return;
 
-            // Меняем местами корень и последний элемент
-            OnExplanation?.Invoke($"Меняем местами корень ({array[0]}) и элемент ({array[i]}).");
+            // Объяснение замены корня с последним элементом
+            string mainSwapExplanation = $"{sortStep}. {array[0]}(корень) меняется с {array[i]}. Перестраиваем кучу:";
+            OnExplanation?.Invoke(mainSwapExplanation);
+
+            // Выполнение замены
             Swap(array, 0, i);
             OnSwap?.Invoke(0, i);
+            OnStepCompleted?.Invoke((int[])array.Clone());
             Thread.Sleep(delay);
 
-            // Восстанавливаем кучу
-            OnExplanation?.Invoke($"Уменьшаем размер кучи и восстанавливаем max-heap:");
-            Heapify(array, i, 0, delay, $"Узел 0 (значение {array[0]})");
-            OnExplanation?.Invoke($"Новый массив: {FormatArray(array)}.\n");
+            // Восстановление кучи и сбор описаний перестановок
+            List<string> swapDescriptions = new List<string>();
+            Heapify(array, i, 0, delay, isBuildingHeap: false, swapDescriptions);
+
+            if (swapDescriptions.Count > 0)
+            {
+                string swaps = string.Join(", ", swapDescriptions);
+                OnExplanation?.Invoke(swaps);
+            }
+
+            OnExplanation?.Invoke($"Массив: {string.Join(",", array)}");
+            sortStep++;
         }
 
-        OnExplanation?.Invoke($"Массив отсортирован: {FormatArray(array)}.");
+        OnExplanation?.Invoke($"Массив отсортирован: {string.Join(",", array)}.");
+        SortingCompleted?.Invoke();
     }
 
-    private void Heapify(int[] array, int heapSize, int rootIndex, int delay, string explanationContext)
+    private void Heapify(int[] array, int heapSize, int rootIndex, int delay, bool isBuildingHeap, List<string> swapDescriptions = null)
     {
         int largest = rootIndex;
         int leftChild = 2 * rootIndex + 1;
         int rightChild = 2 * rootIndex + 2;
 
-        // Проверяем потомков
+        // Значения узла и его потомков
+        string nodeValue = array[rootIndex].ToString();
         string leftDesc = leftChild < heapSize ? array[leftChild].ToString() : "нету";
         string rightDesc = rightChild < heapSize ? array[rightChild].ToString() : "нету";
-        OnExplanation?.Invoke($"{explanationContext}, потомки: {leftDesc} и {rightDesc}.");
 
-        OnComparison?.Invoke(rootIndex, leftChild < heapSize ? leftChild : -1, rightChild < heapSize ? rightChild : -1);
-
-        if (leftChild < heapSize)
+        if (isBuildingHeap)
         {
-            pauseEvent.Wait();
+            bool swapped = false;
 
-            if (isStopped)
-                return;
-
-            Thread.Sleep(delay);
-
-            if (array[leftChild] > array[largest])
+            if (leftChild < heapSize && array[leftChild] > array[largest])
             {
                 largest = leftChild;
+                swapped = true;
             }
-        }
 
-        if (rightChild < heapSize)
-        {
-            pauseEvent.Wait();
-
-            if (isStopped)
-                return;
-
-            Thread.Sleep(delay);
-
-            if (array[rightChild] > array[largest])
+            if (rightChild < heapSize && array[rightChild] > array[largest])
             {
                 largest = rightChild;
+                swapped = true;
             }
+
+            string comparisonResult = swapped
+                ? $"{array[rootIndex]} меняется с {array[largest]}"
+                : $"{array[rootIndex]} остается на месте";
+
+            OnExplanation?.Invoke($"{buildHeapStep}. Узел {nodeValue} сравнивается с {leftDesc} и {rightDesc} = {comparisonResult}");
+            buildHeapStep++;
+        }
+
+        pauseEvent.Wait();
+
+        if (isStopped)
+            return;
+
+        Thread.Sleep(delay);
+
+        if (leftChild < heapSize && array[leftChild] > array[largest])
+        {
+            largest = leftChild;
+        }
+
+        if (rightChild < heapSize && array[rightChild] > array[largest])
+        {
+            largest = rightChild;
         }
 
         if (largest != rootIndex)
         {
-            OnExplanation?.Invoke($"Меняем местами с {array[largest]}: {FormatArrayAfterSwap(array, rootIndex, largest)}.");
+            // Объяснение замены во время сортировки
+            if (!isBuildingHeap && swapDescriptions != null)
+            {
+                swapDescriptions.Add($"{array[largest]} меняется с {array[rootIndex]}");
+            }
+
             Swap(array, rootIndex, largest);
             OnSwap?.Invoke(rootIndex, largest);
+            OnStepCompleted?.Invoke((int[])array.Clone());
             Thread.Sleep(delay);
 
-            // Рекурсивный вызов для затронутого поддерева
-            Heapify(array, heapSize, largest, delay, $"Узел {largest} (значение {array[largest]})");
+            Heapify(array, heapSize, largest, delay, isBuildingHeap, swapDescriptions);
         }
-        else
-        {
-            OnExplanation?.Invoke("Ничего не делаем.");
-        }
-
-        OnStepCompleted?.Invoke((int[])array.Clone());
     }
 
     private void Swap(int[] array, int index1, int index2)
@@ -126,20 +148,6 @@ public class HeapSort : ISortingAlgorithm
         array[index2] = temp;
     }
 
-    private string FormatArray(int[] array)
-    {
-        return "[" + string.Join(", ", array) + "]";
-    }
-
-    private string FormatArrayAfterSwap(int[] array, int index1, int index2)
-    {
-        int[] tempArray = (int[])array.Clone();
-        int temp = tempArray[index1];
-        tempArray[index1] = tempArray[index2];
-        tempArray[index2] = temp;
-        return FormatArray(tempArray);
-    }
-    
     public void Stop()
     {
         isStopped = true;
@@ -152,4 +160,3 @@ public class HeapSort : ISortingAlgorithm
         pauseEvent.Set();
     }
 }
-
