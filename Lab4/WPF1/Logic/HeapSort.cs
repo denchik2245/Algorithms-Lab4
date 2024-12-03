@@ -31,8 +31,7 @@
 
             await showExplanationAsync("Начинаем построение кучи...");
             await Task.Delay(delay);
-
-            // Построение кучи
+            
             for (int i = n / 2 - 1; i >= 0; i--)
             {
                 await Heapify(array, n, i, delay);
@@ -40,30 +39,25 @@
 
             await showExplanationAsync("Куча построена: " + string.Join(",", array));
             await Task.Delay(delay);
-
-            // Извлечение элементов из кучи
+            
             for (int i = n - 1; i >= 0; i--)
             {
                 pauseEvent.Wait();
 
                 if (isStopped)
                     return;
-
-                // Перемещаем текущий корень в конец
+                
                 await showExplanationAsync($"Меняем местами {array[0]} и {array[i]}");
                 await showSwapAsync(0, i);
                 await Task.Delay(delay);
 
-                int temp = array[0];
-                array[0] = array[i];
-                array[i] = temp;
+                (array[0], array[i]) = (array[i], array[0]);
 
                 finalized[i] = 1;
                 showFinalizedElements?.Invoke((int[])finalized.Clone());
                 await showExplanationAsync($"Состояние массива: {string.Join(",", array)}");
                 await Task.Delay(delay);
-
-                // Вызываем heapify на уменьшенной куче
+                
                 await Heapify(array, i, 0, delay);
             }
 
@@ -80,8 +74,7 @@
 
             if (isStopped)
                 return;
-
-            // Сравнение с левым потомком
+            
             if (l < n)
             {
                 await showExplanationAsync($"Сравниваем {array[i]} и левый потомок {array[l]}");
@@ -90,8 +83,7 @@
 
                 if (array[l] > array[largest])
                     largest = l;
-
-                // Снимаем подсветку
+                
                 await showComparisonAsync(-1, -1, -1);
             }
 
@@ -99,8 +91,7 @@
 
             if (isStopped)
                 return;
-
-            // Сравнение с правым потомком
+            
             if (r < n)
             {
                 await showExplanationAsync($"Сравниваем {array[largest]} и правый потомок {array[r]}");
@@ -109,23 +100,18 @@
 
                 if (array[r] > array[largest])
                     largest = r;
-
-                // Снимаем подсветку
+                
                 await showComparisonAsync(-1, -1, -1);
             }
-
-            // Если наибольший элемент не корень
+            
             if (largest != i)
             {
                 await showExplanationAsync($"Меняем местами {array[i]} и {array[largest]}");
                 await showSwapAsync(i, largest);
                 await Task.Delay(delay);
 
-                int swap = array[i];
-                array[i] = array[largest];
-                array[largest] = swap;
+                (array[i], array[largest]) = (array[largest], array[i]);
 
-                // Рекурсивно heapify поддерево
                 await Heapify(array, n, largest, delay);
             }
         }

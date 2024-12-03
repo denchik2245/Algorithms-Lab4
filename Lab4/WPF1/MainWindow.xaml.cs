@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -61,6 +60,7 @@ namespace WPF1
                 CustomFilePathPanel.Visibility = Visibility.Visible;
 
                 SortPanel.Visibility = Visibility.Collapsed;
+                FilterValueInput.Visibility = Visibility.Collapsed;
                 FilterPanel.Visibility = Visibility.Collapsed;
                 MethodSelectorPanel.Visibility = Visibility.Collapsed;
                 Table2.Visibility = Visibility.Collapsed;
@@ -77,6 +77,7 @@ namespace WPF1
                 AlgorithmSelectorPanel.Visibility = Visibility.Collapsed;
                 AllWordsTextBox.Visibility = Visibility.Collapsed;
                 UniqueWordsTextBox.Visibility = Visibility.Collapsed;
+                FilterValueInput.Visibility = Visibility.Visible;
 
                 SortPanel.Visibility = Visibility.Visible;
                 FilterPanel.Visibility = Visibility.Visible;
@@ -98,6 +99,7 @@ namespace WPF1
                 AllWordsTextBox.Visibility = Visibility.Collapsed;
                 UniqueWordsTextBox.Visibility = Visibility.Collapsed;
                 SortPanel.Visibility = Visibility.Collapsed;
+                FilterValueInput.Visibility = Visibility.Collapsed;
                 FilterPanel.Visibility = Visibility.Collapsed;
                 MethodSelectorPanel.Visibility = Visibility.Collapsed;
                 OutputTextBox.Visibility = Visibility.Collapsed;
@@ -183,6 +185,7 @@ namespace WPF1
             if (selectedTask == "Фильтрация таблиц")
             {
                 StartSorting();
+                OutputTextBox.Clear();
             }
             else if (selectedTask.StartsWith("Сортировка текста"))
             {
@@ -920,36 +923,77 @@ namespace WPF1
         {
             try
             {
-                string filePath = GetFilePath();
-                string filterValue = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string inputFilePath = GetFilePath();
+                string filterColumn = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string filterValue = (FilterValueInput2.SelectedItem as ComboBoxItem)?.Content.ToString();
                 string sortKey = (SortAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
-                string sortingMethod = (MethodSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+                string sortMethod = (MethodSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
 
-                if (string.IsNullOrEmpty(filterValue) || string.IsNullOrEmpty(sortKey) || string.IsNullOrEmpty(sortingMethod))
+                if (string.IsNullOrEmpty(filterColumn) || string.IsNullOrEmpty(filterValue) || string.IsNullOrEmpty(sortKey) || string.IsNullOrEmpty(sortMethod))
                 {
-                    MessageBox.Show("Пожалуйста, выберите параметры для фильтрации, сортировки и метод сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                
-                string filterColumn = GetFilterColumn(filePath);
-                if (string.IsNullOrEmpty(filterColumn))
-                {
-                    MessageBox.Show("Не удалось определить фильтрующий столбец.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Пожалуйста, выберите столбец для фильтрации, значение фильтрации, столбец для сортировки и метод сортировки.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                string outputFilePath = "sorted_output.txt";
-                ExternalSorter.MergeSort(filePath, filterColumn, filterValue, sortKey, outputFilePath, sortingMethod);
-                
+                // Чтение заголовков столбцов из файла
+                string headerLine;
+                List<string> headers;
                 try
                 {
-                    string explanation = SortingExplanation.GenerateExplanation(sortingMethod, "Таблица данных", filterColumn, filterValue, sortKey);
-                    var sortedTable = Table.LoadFromFile(outputFilePath);
-                    DisplaySortedTable(sortedTable, filterValue, sortKey, explanation);
+                    var tempFileHandler = new FileHandler(inputFilePath, null);
+                    var data = tempFileHandler.ReadFromFile();
+                    if (data == null || data.Count == 0)
+                    {
+                        MessageBox.Show("Файл пустой или не удалось прочитать данные.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    headerLine = data[0];
+                    headers = headerLine.Split(',').Select(h => h.Trim()).ToList();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка в генерации объяснения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Ошибка при чтении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Находим индексы выбранных столбцов
+                int filterKeyIndex = headers.FindIndex(h => string.Equals(h, filterColumn, StringComparison.OrdinalIgnoreCase));
+                int secondaryKeyIndex = headers.FindIndex(h => string.Equals(h, sortKey, StringComparison.OrdinalIgnoreCase));
+
+                if (filterKeyIndex == -1 || secondaryKeyIndex == -1)
+                {
+                    MessageBox.Show("Не удалось найти выбранные столбцы в файле.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Создаем экземпляры FileHandler и ExternalSorter
+                var fileHandler = new FileHandler(inputFilePath, null);
+                var externalSorter = new ExternalSorter(fileHandler);
+
+                // Создаем объект для отслеживания прогресса
+                IProgress<string> progress = new Progress<string>(message =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        OutputTextBox.AppendText(message + Environment.NewLine);
+                    });
+                });
+
+                // Запускаем сортировку
+                externalSorter.Sort(sortMethod, filterKeyIndex, filterValue, secondaryKeyIndex, progress);
+
+                try
+                {
+                    // Читаем отсортированные данные из файла и отображаем их
+                    string sortedResultFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SortedResult.txt");
+                    var sortedData = File.ReadAllLines(sortedResultFilePath).ToList();
+
+                    // Вызываем метод для отображения отсортированных данных
+                    DisplaySortedData(sortedData);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка при отображении отсортированных данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
@@ -959,44 +1003,23 @@ namespace WPF1
         }
         
         //Отображение отфильтрованных и отсортированных данных таблицы
-        private void DisplaySortedTable(Table table, string filterValue, string sortKey, string explanation)
+        private void DisplaySortedData(List<string> sortedData)
         {
-            StringBuilder sb = new StringBuilder();
-            
-            sb.AppendLine(filterValue);
-            sb.AppendLine();
-            
-            var numericalColumns = GetNumericalColumns(table);
-            var headers = table.Columns;
-            
-            foreach (var row in table.Rows)
+            if (sortedData == null || sortedData.Count == 0)
             {
-                List<string> rowValues = new List<string>();
-
-                for (int i = 0; i < headers.Count; i++)
-                {
-                    var column = headers[i];
-                    
-                    if (i == 1)
-                        continue;
-
-                    var value = row[column];
-
-                    if (numericalColumns.Contains(column))
-                    {
-                        rowValues.Add($"{column}: {FormatNumericValue(value, column)}");
-                    }
-                    else
-                    {
-                        rowValues.Add(value);
-                    }
-                }
-                
-                sb.AppendLine(string.Join(", ", rowValues));
+                MessageBox.Show("Нет данных для отображения.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
             
-            sb.AppendLine(explanation);
-            OutputTextBox.Text = sb.ToString();
+            StringBuilder sb = new StringBuilder();
+            
+            sb.AppendLine("Отсортированные данные:");
+            sb.AppendLine();
+
+            foreach (var line in sortedData)
+            {
+                sb.AppendLine(line);
+            }
         }
         
         //Получение пунктов списка взависимости от файла
@@ -1011,31 +1034,26 @@ namespace WPF1
                     return;
                 }
 
-                var headers = lines[0].Split(',');
+                var headers = lines[0].Split(',').Select(h => h.Trim()).ToList();
 
-                if (headers.Length < 2)
+                if (headers.Count < 2)
                 {
                     MessageBox.Show("Файл должен содержать как минимум два столбца.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 
                 FilterAttributeSelector.Items.Clear();
-                var filterValues = lines.Skip(1)
-                    .Select(line => line.Split(',')[1].Trim())
-                    .Distinct()
-                    .ToList();
-
-                foreach (var value in filterValues)
+                foreach (var header in headers)
                 {
-                    FilterAttributeSelector.Items.Add(new ComboBoxItem { Content = value });
+                    FilterAttributeSelector.Items.Add(new ComboBoxItem { Content = header });
                 }
-                
+
                 SortAttributeSelector.Items.Clear();
-                foreach (var header in headers.Where((h, index) => index != 1))
+                foreach (var header in headers)
                 {
                     SortAttributeSelector.Items.Add(new ComboBoxItem { Content = header });
                 }
-                
+
                 if (FilterAttributeSelector.Items.Count > 0)
                     FilterAttributeSelector.SelectedIndex = 0;
 
@@ -1050,87 +1068,38 @@ namespace WPF1
             }
         }
         
-        //Получить заголовок второго столбца
-        private string GetFilterColumn(string filePath)
+        private void FilterAttributeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var lines = File.ReadLines(filePath);
-            var headerLine = lines.FirstOrDefault();
-            if (headerLine != null)
+            var selectedColumn = (FilterAttributeSelector.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (string.IsNullOrEmpty(selectedColumn))
+                return;
+
+            try
             {
-                var headers = headerLine.Split(',');
-                if (headers.Length >= 2)
+                var lines = File.ReadAllLines(GetFilePath());
+                var headers = lines[0].Split(',').Select(h => h.Trim()).ToList();
+                int columnIndex = headers.FindIndex(h => string.Equals(h, selectedColumn, StringComparison.OrdinalIgnoreCase));
+
+                if (columnIndex == -1)
+                    return;
+
+                var filterValues = lines.Skip(1)
+                    .Select(line => line.Split(',')[columnIndex].Trim())
+                    .Distinct()
+                    .ToList();
+
+                FilterValueInput2.Items.Clear();
+                foreach (var value in filterValues)
                 {
-                    return headers[1];
+                    FilterValueInput2.Items.Add(new ComboBoxItem { Content = value });
                 }
+
+                if (FilterValueInput2.Items.Count > 0)
+                    FilterValueInput2.SelectedIndex = 0;
             }
-            throw new Exception("Невозможно определить фильтрующий столбец.");
-        }
-        
-        //Определяет, какие столбцы таблицы содержат числовые данные
-        private HashSet<string> GetNumericalColumns(Table table)
-        {
-            var numericalColumns = new HashSet<string>();
-
-            if (table.Rows.Count == 0)
-                return numericalColumns;
-
-            var culture = CultureInfo.GetCultureInfo("ru-RU");
-
-            foreach (var column in table.Columns)
+            catch (Exception ex)
             {
-                if (table.Columns.IndexOf(column) == 1)
-                    continue;
-
-                bool isNumeric = true;
-
-                foreach (var row in table.Rows.Take(5))
-                {
-                    var value = row[column];
-                    if (!double.TryParse(value, NumberStyles.Any, culture, out _))
-                    {
-                        isNumeric = false;
-                        break;
-                    }
-                }
-
-                if (isNumeric)
-                {
-                    numericalColumns.Add(column);
-                }
-            }
-
-            return numericalColumns;
-        }
-        
-        //Форматирование числовых значений
-        private string FormatNumericValue(string value, string column)
-        {
-            var culture = CultureInfo.GetCultureInfo("ru-RU");
-
-            if (double.TryParse(value, NumberStyles.Any, culture, out double numericValue))
-            {
-                string formattedValue = numericValue.ToString("N0", culture);
-                
-                if (column.Contains("Площадь"))
-                {
-                    return $"{formattedValue} кв.км";
-                }
-                else if (column.Contains("Численность населения"))
-                {
-                    return $"{formattedValue} человек";
-                }
-                else if (column.Contains("Молекулярная масса"))
-                {
-                    return $"{formattedValue} г/моль";
-                }
-                else
-                {
-                    return formattedValue;
-                }
-            }
-            else
-            {
-                return value;
+                MessageBox.Show($"Ошибка при обновлении значений фильтрации: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         

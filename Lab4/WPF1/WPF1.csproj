@@ -54,6 +54,10 @@
       <Content Include="Resources\Text_20000.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <None Remove="Resources\SortedResult.txt" />
+      <Content Include="Resources\SortedResult.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>
