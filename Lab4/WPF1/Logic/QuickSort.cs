@@ -11,124 +11,80 @@
 
         private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true);
         private volatile bool isStopped = false;
-        private Stack<(int low, int high)> stack = new();
-        private bool[] finalized;
-
-        private int[] array;
-        private int delay;
-        private int sortStep = 1;
 
         public void Sort(int[] array, int delay)
         {
-            this.array = array;
-            this.delay = delay;
+            OnExplanation?.Invoke("Начинаем QuickSort...");
+            Thread.Sleep(delay);
 
-            // Исходный массив
-            OnExplanation?.Invoke($"Исходный массив: {string.Join(",", array)}\n");
+            QuickSortRecursive(array, 0, array.Length - 1, delay);
 
-            // Инициализация стека и финализированных элементов
-            stack.Clear();
-            stack.Push((0, array.Length - 1));
-            finalized = new bool[array.Length];
-            sortStep = 1;
-
-            // Запуск сортировки в отдельном потоке
-            Task.Run(() => QuickSortAlgorithm());
+            OnExplanation?.Invoke("Сортировка завершена.");
+            SortingCompleted?.Invoke();
         }
 
-        private void QuickSortAlgorithm()
+        private void QuickSortRecursive(int[] array, int low, int high, int delay)
         {
-            while (stack.Count > 0)
+            if (low < high)
             {
                 pauseEvent.Wait();
 
                 if (isStopped)
-                {
                     return;
-                }
 
-                var (low, high) = stack.Pop();
-                if (low < high)
-                {
-                    OnExplanation?.Invoke($"{sortStep}. Выбираем подмассив с индексами от {low} до {high}.\n");
-                    int pivotIndex = Partition(low, high);
-                    if (pivotIndex == -1)
-                        return;
+                int pi = Partition(array, low, high, delay);
 
-                    finalized[pivotIndex] = true;
-                    OnFinalizedElements?.Invoke(GetFinalizedIndices());
-
-                    stack.Push((low, pivotIndex - 1));
-                    stack.Push((pivotIndex + 1, high));
-                    sortStep++;
-                }
-                else if (low == high)
-                {
-                    finalized[low] = true;
-                    OnFinalizedElements?.Invoke(GetFinalizedIndices());
-                    OnExplanation?.Invoke($"{sortStep}. Элемент с индексом {low} окончательно размещен.\n");
-                    sortStep++;
-                }
+                QuickSortRecursive(array, low, pi - 1, delay);
+                QuickSortRecursive(array, pi + 1, high, delay);
             }
-
-            OnExplanation?.Invoke($"Массив отсортирован: {string.Join(",", array)}.");
-            SortingCompleted?.Invoke();
         }
 
-        private int Partition(int low, int high)
+        private int Partition(int[] array, int low, int high, int delay)
         {
-            int pivot = array[high];
-            OnExplanation?.Invoke($"Выбираем опорный элемент {pivot} (индекс {high}).");
-            int i = low - 1;
+            int pivot = array[high]; // выбираем опорный элемент
+            OnExplanation?.Invoke($"Выбран опорный элемент: {pivot}");
+            Thread.Sleep(delay);
+
+            int i = (low - 1);
 
             for (int j = low; j < high; j++)
             {
                 pauseEvent.Wait();
 
                 if (isStopped)
-                    return -1;
+                    return i + 1;
 
                 OnComparison?.Invoke(j, high, -1);
-                OnExplanation?.Invoke($"Сравниваем элемент {array[j]} (индекс {j}) с опорным {pivot}.");
-
+                OnExplanation?.Invoke($"Сравниваем {array[j]} и {pivot}");
                 Thread.Sleep(delay);
 
                 if (array[j] < pivot)
                 {
                     i++;
-                    if (i != j)
-                    {
-                        OnExplanation?.Invoke($"Меняем местами {array[i]} (индекс {i}) и {array[j]} (индекс {j}).");
-                        Swap(i, j);
-                        OnSwap?.Invoke(i, j);
-                        OnStepCompleted?.Invoke((int[])array.Clone());
-                        Thread.Sleep(delay);
-                    }
+
+                    OnSwap?.Invoke(i, j);
+                    OnExplanation?.Invoke($"Меняем местами {array[i]} и {array[j]}");
+                    Thread.Sleep(delay);
+
+                    int temp = array[i];
+                    array[i] = array[j];
+                    array[j] = temp;
+
+                    OnStepCompleted?.Invoke((int[])array.Clone());
                 }
             }
 
-            if (i + 1 != high)
-            {
-                OnExplanation?.Invoke($"Меняем опорный элемент {pivot} с элементом {array[i + 1]} (индекс {i + 1}).");
-                Swap(i + 1, high);
-                OnSwap?.Invoke(i + 1, high);
-                OnStepCompleted?.Invoke((int[])array.Clone());
-                Thread.Sleep(delay);
-            }
-            else
-            {
-                OnExplanation?.Invoke($"Опорный элемент {pivot} остается на месте.");
-            }
+            OnSwap?.Invoke(i + 1, high);
+            OnExplanation?.Invoke($"Перемещаем опорный элемент на позицию {i + 1}");
+            Thread.Sleep(delay);
 
-            OnExplanation?.Invoke($"Элемент {array[i + 1]} (индекс {i + 1}) установлен на окончательное место.\n");
+            int temp1 = array[i + 1];
+            array[i + 1] = array[high];
+            array[high] = temp1;
+
+            OnStepCompleted?.Invoke((int[])array.Clone());
+
             return i + 1;
-        }
-
-        private void Swap(int index1, int index2)
-        {
-            int temp = array[index1];
-            array[index1] = array[index2];
-            array[index2] = temp;
         }
 
         public void Stop()
@@ -142,18 +98,5 @@
             isStopped = false;
             pauseEvent.Set();
         }
-
-        private int[] GetFinalizedIndices()
-        {
-            List<int> finalizedIndices = new List<int>();
-            for (int i = 0; i < finalized.Length; i++)
-            {
-                if (finalized[i])
-                    finalizedIndices.Add(i);
-            }
-            return finalizedIndices.ToArray();
-        }
     }
-
-
 }

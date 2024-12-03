@@ -176,7 +176,7 @@ namespace WPF1
         }
         
         //Кнопка "Начать"
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedTask = ((ComboBoxItem)TaskSelector.SelectedItem)?.Content.ToString();
 
@@ -261,55 +261,105 @@ namespace WPF1
 
                     ArrayDisplay.ItemsSource = numbers;
                     initialNumbers = numbers.Select(n => n.Value).ToList();
-                    
+
                     int[] arrayToSort = numbers.Select(n => n.Value).ToArray();
 
-                    sortingAlgorithm = selectedAlgorithm switch
-                    {
-                        "BubbleSort" => new BubbleSort(),
-                        "QuickSort" => new QuickSort(),
-                        "InsertSort" => new InsertSort(),
-                        "HeapSort" => new HeapSort(),
-                        _ => throw new NotImplementedException("Алгоритм не реализован.")
-                    };
-                    
-                    sortingAlgorithm.OnStepCompleted += UpdateArray;
-                    sortingAlgorithm.SortingCompleted += OnSortingCompleted;
-                    sortingAlgorithm.OnComparison += ShowComparison;
-                    sortingAlgorithm.OnExplanation += ShowExplanation;
-                    
-                    if (sortingAlgorithm is BubbleSort)
-                    {
-                        sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
-                        sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
-                    }
-                    else if (sortingAlgorithm is InsertSort)
-                    {
-                        sortingAlgorithm.OnSwap += AnimateSwapHandlerForInsertSort;
-                    }
-                    else if (sortingAlgorithm is QuickSort)
-                    {
-                        sortingAlgorithm.OnComparison -= ShowComparison;
-                    }
-                    
                     isSortingStarted = true;
 
-                    sortingThread = new Thread(() =>
+                    if (selectedAlgorithm == "HeapSort")
                     {
+                        IAsyncSortingAlgorithm asyncSortingAlgorithm = new HeapSort(
+                            ShowComparisonAsync,
+                            ShowSwapAsync,
+                            ShowExplanationAsync,
+                            ShowFinalizedElements);
+
+                        asyncSortingAlgorithm.SortingCompleted += OnSortingCompleted;
+
                         try
                         {
-                            sortingAlgorithm.Sort(arrayToSort, delay);
+                            await asyncSortingAlgorithm.SortAsync(arrayToSort, delay);
                         }
                         catch (Exception ex)
                         {
-                            Dispatcher.Invoke(() =>
-                                MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
+                            MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                         }
-                    })
+                    }
+                    else if (selectedAlgorithm == "QuickSort")
                     {
-                        IsBackground = true
-                    };
-                    sortingThread.Start();
+                        sortingAlgorithm = new QuickSort();
+
+                        sortingAlgorithm.OnStepCompleted += UpdateArray;
+                        sortingAlgorithm.SortingCompleted += OnSortingCompleted;
+                        sortingAlgorithm.OnComparison += ShowComparison;
+                        sortingAlgorithm.OnSwap += AnimateSwapHandlerForQuickSort;
+                        sortingAlgorithm.OnExplanation += ShowExplanation;
+
+                        isSortingStarted = true;
+
+                        sortingThread = new Thread(() =>
+                        {
+                            try
+                            {
+                                sortingAlgorithm.Sort(arrayToSort, delay);
+                            }
+                            catch (Exception ex)
+                            {
+                                Dispatcher.Invoke(() =>
+                                    MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
+                            }
+                        })
+                        {
+                            IsBackground = true
+                        };
+                        sortingThread.Start();
+                    }
+                    else
+                    {
+                        sortingAlgorithm = selectedAlgorithm switch
+                        {
+                            "BubbleSort" => new BubbleSort(),
+                            "QuickSort" => new QuickSort(),
+                            "InsertSort" => new InsertSort(),
+                            _ => throw new NotImplementedException("Алгоритм не реализован.")
+                        };
+
+                        sortingAlgorithm.OnStepCompleted += UpdateArray;
+                        sortingAlgorithm.SortingCompleted += OnSortingCompleted;
+                        sortingAlgorithm.OnComparison += ShowComparison;
+                        sortingAlgorithm.OnExplanation += ShowExplanation;
+
+                        if (sortingAlgorithm is BubbleSort)
+                        {
+                            sortingAlgorithm.OnSwap += AnimateSwapHandlerForBubbleSort;
+                            sortingAlgorithm.OnFinalizedElements += ShowFinalizedElements;
+                        }
+                        else if (sortingAlgorithm is InsertSort)
+                        {
+                            sortingAlgorithm.OnSwap += AnimateSwapHandlerForInsertSort;
+                        }
+                        else if (sortingAlgorithm is QuickSort)
+                        {
+                            sortingAlgorithm.OnComparison -= ShowComparison;
+                        }
+
+                        sortingThread = new Thread(() =>
+                        {
+                            try
+                            {
+                                sortingAlgorithm.Sort(arrayToSort, delay);
+                            }
+                            catch (Exception ex)
+                            {
+                                Dispatcher.Invoke(() =>
+                                    MessageBox.Show($"Ошибка выполнения сортировки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error));
+                            }
+                        })
+                        {
+                            IsBackground = true
+                        };
+                        sortingThread.Start();
+                    }
                 }
                 else
                 {
@@ -395,13 +445,25 @@ namespace WPF1
         }
         private void UpdateArray(int[] newArray)
         {
-            if (isAnimating) return;
-
             Dispatcher.Invoke(() =>
             {
-                for (int i = 0; i < numbers.Count; i++)
+                for (int i = 0; i < newArray.Length; i++)
                 {
-                    numbers[i].Value = newArray[i];
+                    if (i < numbers.Count)
+                    {
+                        // Обновляем значение элемента
+                        numbers[i].Value = newArray[i];
+                    }
+                    else
+                    {
+                        numbers.Add(new NumberItem { Value = newArray[i] });
+                    }
+                }
+
+                // Удаляем лишние элементы, если новые данные короче
+                while (numbers.Count > newArray.Length)
+                {
+                    numbers.RemoveAt(numbers.Count - 1);
                 }
             });
         }
@@ -418,63 +480,8 @@ namespace WPF1
             await Task.Delay(delay);
         }
         
-        //Для HeapSort
-        private async Task HandleCompareAndSwap(int nodeIndex, int leftChildIndex, int rightChildIndex)
-        {
-            int largestIndex = nodeIndex;
-
-            if (leftChildIndex >= 0 && leftChildIndex < numbers.Count &&
-                numbers[leftChildIndex].Value > numbers[largestIndex].Value)
-            {
-                largestIndex = leftChildIndex;
-            }
-
-            if (rightChildIndex >= 0 && rightChildIndex < numbers.Count &&
-                numbers[rightChildIndex].Value > numbers[largestIndex].Value)
-            {
-                largestIndex = rightChildIndex;
-            }
-            
-            if (largestIndex != nodeIndex)
-            {
-                await HighlightElements(nodeIndex, largestIndex);
-
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    (numbers[nodeIndex].Value, numbers[largestIndex].Value) =
-                        (numbers[largestIndex].Value, numbers[nodeIndex].Value);
-                });
-            }
-            else
-            {
-                await HighlightElements(nodeIndex);
-            }
-        }
-        private async Task HighlightElements(int index1, int index2 = -1)
-        {
-            await Dispatcher.InvokeAsync(() =>
-            {
-                foreach (var item in numbers)
-                {
-                    item.IsComparing = false;
-                }
-                
-                if (index1 >= 0 && index1 < numbers.Count)
-                {
-                    numbers[index1].IsComparing = true;
-                }
-
-                if (index2 >= 0 && index2 < numbers.Count)
-                {
-                    numbers[index2].IsComparing = true;
-                }
-            });
-
-            await Task.Delay(300);
-        }
-        
-        //Подсветка
-        private async void ShowComparison(int index1, int index2, int unused)
+        //Подсветка элементов
+        private async void ShowComparison(int index1, int index2, int index3)
         {
             await Dispatcher.InvokeAsync(() =>
             {
@@ -487,8 +494,11 @@ namespace WPF1
                     numbers[index1].IsComparing = true;
                 if (index2 >= 0 && index2 < numbers.Count)
                     numbers[index2].IsComparing = true;
+                if (index3 >= 0 && index3 < numbers.Count)
+                    numbers[index3].IsComparing = true;
             });
 
+            // Задержка для отображения подсветки
             await Task.Delay(delay);
 
             await Dispatcher.InvokeAsync(() =>
@@ -497,6 +507,8 @@ namespace WPF1
                     numbers[index1].IsComparing = false;
                 if (index2 >= 0 && index2 < numbers.Count)
                     numbers[index2].IsComparing = false;
+                if (index3 >= 0 && index3 < numbers.Count)
+                    numbers[index3].IsComparing = false;
             });
         }
         
@@ -513,6 +525,33 @@ namespace WPF1
                         numbers[i].IsComparing = false;
                     }
                 }
+            });
+        }
+        
+        private async Task ShowComparisonAsync(int index1, int index2, int index3)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var item in numbers)
+                {
+                    item.IsComparing = false;
+                }
+
+                if (index1 >= 0 && index1 < numbers.Count)
+                    numbers[index1].IsComparing = true;
+                if (index2 >= 0 && index2 < numbers.Count)
+                    numbers[index2].IsComparing = true;
+                if (index3 >= 0 && index3 < numbers.Count)
+                    numbers[index3].IsComparing = true;
+            });
+        }
+
+        private async Task ShowExplanationAsync(string explanation)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                // Обновляем UI с новым объяснением
+                OutputTextBox.Text += explanation + "\n";
             });
         }
         
@@ -670,6 +709,168 @@ namespace WPF1
             });
         }
         
+        private async Task AnimateSwapForHeapSort(int index1, int index2)
+        {
+            const double itemWidth = 77;
+            double animationDurationSeconds = 0.5;
+
+            FrameworkElement container1 = null;
+            FrameworkElement container2 = null;
+            Border border1 = null;
+            Border border2 = null;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                container1 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index1) as FrameworkElement;
+                container2 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index2) as FrameworkElement;
+
+                if (container1 != null && container2 != null)
+                {
+                    border1 = FindVisualChild<Border>(container1);
+                    border2 = FindVisualChild<Border>(container2);
+                }
+            });
+
+            if (border1 == null || border2 == null) return;
+
+            // Рассчитываем расстояние между элементами
+            double distance = (index2 - index1) * itemWidth;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!(border1.RenderTransform is TranslateTransform))
+                {
+                    border1.RenderTransform = new TranslateTransform();
+                }
+                if (!(border2.RenderTransform is TranslateTransform))
+                {
+                    border2.RenderTransform = new TranslateTransform();
+                }
+
+                TranslateTransform tt1 = (TranslateTransform)border1.RenderTransform;
+                TranslateTransform tt2 = (TranslateTransform)border2.RenderTransform;
+
+                DoubleAnimation animation1 = new DoubleAnimation
+                {
+                    To = distance,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+
+                DoubleAnimation animation2 = new DoubleAnimation
+                {
+                    To = -distance,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+
+                tt1.BeginAnimation(TranslateTransform.XProperty, animation1);
+                tt2.BeginAnimation(TranslateTransform.XProperty, animation2);
+            });
+
+            await Task.Delay((int)(animationDurationSeconds * 1000));
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                int temp = numbers[index1].Value;
+                numbers[index1].Value = numbers[index2].Value;
+                numbers[index2].Value = temp;
+
+                if (border1.RenderTransform is TranslateTransform tt1)
+                {
+                    tt1.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt1.X = 0;
+                }
+
+                if (border2.RenderTransform is TranslateTransform tt2)
+                {
+                    tt2.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt2.X = 0;
+                }
+            });
+        }
+
+        private async Task AnimateSwapForQuickSort(int index1, int index2)
+        {
+            const double itemWidth = 77;
+            double animationDurationSeconds = 0.5;
+
+            FrameworkElement container1 = null;
+            FrameworkElement container2 = null;
+            Border border1 = null;
+            Border border2 = null;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                container1 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index1) as FrameworkElement;
+                container2 = ArrayDisplay.ItemContainerGenerator.ContainerFromIndex(index2) as FrameworkElement;
+
+                if (container1 != null && container2 != null)
+                {
+                    border1 = FindVisualChild<Border>(container1);
+                    border2 = FindVisualChild<Border>(container2);
+                }
+            });
+
+            if (border1 == null || border2 == null) return;
+
+            // Рассчитываем расстояние между элементами
+            double distance = (index2 - index1) * itemWidth;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!(border1.RenderTransform is TranslateTransform))
+                {
+                    border1.RenderTransform = new TranslateTransform();
+                }
+                if (!(border2.RenderTransform is TranslateTransform))
+                {
+                    border2.RenderTransform = new TranslateTransform();
+                }
+
+                TranslateTransform tt1 = (TranslateTransform)border1.RenderTransform;
+                TranslateTransform tt2 = (TranslateTransform)border2.RenderTransform;
+
+                DoubleAnimation animation1 = new DoubleAnimation
+                {
+                    To = distance,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+
+                DoubleAnimation animation2 = new DoubleAnimation
+                {
+                    To = -distance,
+                    Duration = TimeSpan.FromSeconds(animationDurationSeconds),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+
+                tt1.BeginAnimation(TranslateTransform.XProperty, animation1);
+                tt2.BeginAnimation(TranslateTransform.XProperty, animation2);
+            });
+
+            await Task.Delay((int)(animationDurationSeconds * 1000));
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                int temp = numbers[index1].Value;
+                numbers[index1].Value = numbers[index2].Value;
+                numbers[index2].Value = temp;
+
+                if (border1.RenderTransform is TranslateTransform tt1)
+                {
+                    tt1.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt1.X = 0;
+                }
+
+                if (border2.RenderTransform is TranslateTransform tt2)
+                {
+                    tt2.BeginAnimation(TranslateTransform.XProperty, null);
+                    tt2.X = 0;
+                }
+            });
+        }
+        
         // Метод для анимации обмена элементов
         private async void AnimateSwapHandlerForBubbleSort(int index1, int index2)
         {
@@ -680,6 +881,16 @@ namespace WPF1
         private async void AnimateSwapHandlerForInsertSort(int index1, int index2)
         {
             await AnimateSwapForInsertSort(index1, index2);
+        }
+        
+        private async Task ShowSwapAsync(int index1, int index2)
+        {
+            await AnimateSwapForHeapSort(index1, index2);
+        }
+        
+        private async void AnimateSwapHandlerForQuickSort(int index1, int index2)
+        {
+            await AnimateSwapForQuickSort(index1, index2);
         }
         
         //Поиск визуального дочернего элемента

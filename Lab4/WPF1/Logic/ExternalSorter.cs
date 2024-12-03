@@ -1,12 +1,12 @@
-﻿public static class ExternalSorter
+﻿namespace WPF1.Logic;
+
+public static class ExternalSorter
 {
     public static void MergeSort(string inputFilePath, string filterColumn, string filterValue, string sortKey, string outputFilePath, string sortingMethod)
     {
-        // Чтение и фильтрация данных
         var table = Table.LoadFromFile(inputFilePath);
         var filteredRows = table.Rows.Where(row => row[filterColumn].Equals(filterValue)).ToList();
         
-        // Определение типа сортировки
         List<Dictionary<string, string>> sortedRows;
         switch (sortingMethod)
         {
@@ -22,8 +22,7 @@
             default:
                 throw new ArgumentException("Неизвестный метод сортировки.");
         }
-
-        // Запись отсортированных данных в выходной файл
+        
         Table sortedTable = new Table
         {
             Columns = table.Columns,
@@ -88,8 +87,7 @@
     {
         if (rows.Count <= 1)
             return rows;
-
-        // Разделение на несколько путей
+        
         int size = (int)Math.Ceiling((double)rows.Count / numberOfWays);
         List<List<Dictionary<string, string>>> sortedChunks = new List<List<Dictionary<string, string>>>();
 
@@ -98,8 +96,7 @@
             var chunk = rows.Skip(i).Take(size).OrderBy(row => row[sortKey], StringComparer.Ordinal).ToList();
             sortedChunks.Add(chunk);
         }
-
-        // Слияние всех путей
+        
         return KWayMerge(sortedChunks, sortKey);
     }
 
@@ -134,16 +131,13 @@
     private static List<Dictionary<string, string>> KWayMerge(List<List<Dictionary<string, string>>> sortedChunks, string sortKey)
     {
         List<Dictionary<string, string>> result = new List<Dictionary<string, string>>();
-        // Используем приоритетную очередь для эффективного слияния
         var comparer = Comparer<(Dictionary<string, string> row, int chunkIndex)>.Create((a, b) =>
             string.Compare(a.row[sortKey], b.row[sortKey], StringComparison.Ordinal));
 
         SortedSet<(Dictionary<string, string> row, int chunkIndex)> priorityQueue = new SortedSet<(Dictionary<string, string>, int)>(comparer);
-
-        // Индексы текущих элементов в каждом чанке
+        
         int[] indices = new int[sortedChunks.Count];
-
-        // Инициализация очереди
+        
         for (int i = 0; i < sortedChunks.Count; i++)
         {
             if (sortedChunks[i].Count > 0)
