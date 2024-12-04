@@ -187,7 +187,6 @@ namespace WPF1.Logic
 
                 if (IsInOrder(previousKey, currentKey, isNumeric))
                 {
-                    // Последовательность продолжается
                     currentBlock.Add(data[i]);
                 }
                 else
@@ -221,9 +220,8 @@ namespace WPF1.Logic
 
             for (int i = 1; i < data.Count; i += chunkSize)
             {
-                var chunk = data.Skip(i).Take(chunkSize).ToList();
-
-                // Сортируем каждый блок
+                var chunk = data.Skip(i).Take(chunkSize). ToList();
+                
                 chunk.Sort((line1, line2) =>
                 {
                     return CompareLines(line1, line2, secondaryKeyIndex, isNumeric);
