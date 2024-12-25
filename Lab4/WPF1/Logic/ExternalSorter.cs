@@ -242,9 +242,54 @@ namespace WPF1.Logic
         private string PerformDirectMergeSort(List<string> tempFiles, int secondaryKeyIndex, bool isNumeric, IProgress<string> progress, string indent)
         {
             int step = 1;
+
+            // Шаг 1: Разбить элементы на пары и осуществить слияние элементов каждой пары
+            progress?.Report($"Шаг {step}. Разбиваем элементы на пары и осуществляем слияние элементов каждой пары.");
+            var newTempFiles = new List<string>();
+            foreach (var tempFile in tempFiles)
+            {
+                var lines = File.ReadAllLines(tempFile).ToList();
+                var mergedLines = new List<string>();
+
+                // Обработка пар
+                for (int i = 0; i < lines.Count; i += 2)
+                {
+                    if (i + 1 < lines.Count)
+                    {
+                        // Слияние пары
+                        var mergedPair = MergeLines(new List<string> { lines[i] }, new List<string> { lines[i + 1] }, secondaryKeyIndex, isNumeric);
+                        mergedLines.AddRange(mergedPair);
+
+                        progress?.Report($"{indent}Слияние пары: \"{lines[i]}\" и \"{lines[i + 1]}\". Результат: \"{string.Join(", ", mergedPair)}\".");
+                    }
+                    else
+                    {
+                        // Если элемент без пары, добавляем его как есть
+                        mergedLines.Add(lines[i]);
+                        progress?.Report($"{indent}Элемент \"{lines[i]}\" остался без пары и добавляется как есть.");
+                    }
+                }
+
+                // Сохраняем результат в новый временный файл
+                var newTempFile = GetTempFileName();
+                File.WriteAllLines(newTempFile, mergedLines);
+                newTempFiles.Add(newTempFile);
+                progress?.Report($"{indent}Создан временный файл {Path.GetFileName(newTempFile)} с отсортированными цепочками длины 2.");
+            }
+
+            // Удаляем старые временные файлы
+            foreach (var tempFile in tempFiles)
+            {
+                File.Delete(tempFile);
+            }
+
+            tempFiles = newTempFiles;
+            step++;
+
+            // Шаги 2 и 3: Разбивать отсортированные цепочки на пары и осуществлять их слияние, пока не останется одна цепочка
             while (tempFiles.Count > 1)
             {
-                progress?.Report($"Шаг {step}. Слияние пар блоков");
+                progress?.Report($"Шаг {step}. Разбиваем отсортированные цепочки на пары и осуществляем их слияние.");
                 var mergedFiles = new List<string>();
                 var filesToDelete = new List<string>();
 
@@ -252,20 +297,23 @@ namespace WPF1.Logic
                 {
                     if (i + 1 < tempFiles.Count)
                     {
+                        // Слияние двух файлов
                         var mergedFile = MergeFiles(tempFiles[i], tempFiles[i + 1], secondaryKeyIndex, isNumeric, progress, indent + "  ");
                         mergedFiles.Add(mergedFile);
-
-                        progress?.Report($"Слияние файлов {Path.GetFileName(tempFiles[i])} и {Path.GetFileName(tempFiles[i + 1])} в {Path.GetFileName(mergedFile)} \n ");
-
                         filesToDelete.Add(tempFiles[i]);
                         filesToDelete.Add(tempFiles[i + 1]);
+
+                        progress?.Report($"{indent}Слияние цепочек из файлов {Path.GetFileName(tempFiles[i])} и {Path.GetFileName(tempFiles[i + 1])}. Результат записан в {Path.GetFileName(mergedFile)}.");
                     }
                     else
                     {
+                        // Если остался файл без пары, он переходит в следующий раунд
                         mergedFiles.Add(tempFiles[i]);
+                        progress?.Report($"{indent}Файл {Path.GetFileName(tempFiles[i])} остался без пары и переходит в следующий раунд.");
                     }
                 }
 
+                // Удаляем использованные файлы
                 foreach (var file in filesToDelete)
                 {
                     File.Delete(file);
@@ -275,8 +323,36 @@ namespace WPF1.Logic
                 step++;
             }
 
+            progress?.Report($"Алгоритм завершен. Окончательный результат записан в файл {Path.GetFileName(tempFiles[0])}.");
             return tempFiles[0];
         }
+
+        private List<string> MergeLines(List<string> lines1, List<string> lines2, int keyIndex, bool isNumeric)
+        {
+            var merged = new List<string>();
+            int i = 0, j = 0;
+
+            while (i < lines1.Count && j < lines2.Count)
+            {
+                if (CompareLines(lines1[i], lines2[j], keyIndex, isNumeric) <= 0)
+                {
+                    merged.Add(lines1[i]);
+                    i++;
+                }
+                else
+                {
+                    merged.Add(lines2[j]);
+                    j++;
+                }
+            }
+
+            // Добавляем оставшиеся элементы
+            while (i < lines1.Count) merged.Add(lines1[i++]);
+            while (j < lines2.Count) merged.Add(lines2[j++]);
+
+            return merged;
+        }
+
 
         private string PerformNaturalMergeSort(List<string> tempFiles, int secondaryKeyIndex, bool isNumeric, IProgress<string> progress, string indent)
         {

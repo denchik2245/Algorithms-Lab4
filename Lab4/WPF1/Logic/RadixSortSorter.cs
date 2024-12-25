@@ -6,47 +6,55 @@ public class RadixSortSorter : IWordSorter
     public List<string> Sort(List<string> words)
     {
         if (words == null || words.Count == 0)
+        {
             return new List<string>();
+        }
 
-        int maxLength = words.Max(word => word.Length);
+        int maxLength = words.Max(word => word.Length); // Максимальная длина строки
+        string[] buffer1 = words.ToArray();            // Преобразуем в массив для оптимальной работы
+        string[] buffer2 = new string[buffer1.Length]; // Вспомогательный массив для перестановок
+        int[] counts = new int[28];                    // Массив для подсчета частот (26 букв + прочие)
 
         for (int pos = maxLength - 1; pos >= 0; pos--)
         {
-            // Расширяем диапазон символов для сортировки (например, от a до z + резерв для остальных)
-            int bucketCount = 27; // 26 букв + 1 для остальных символов
-            List<string>[] buckets = new List<string>[bucketCount];
-            for (int i = 0; i < bucketCount; i++)
+            Array.Clear(counts, 0, counts.Length);     // Сброс массива частот
+
+            // Подсчет количества символов по bucket'ам
+            foreach (string word in buffer1)
             {
-                buckets[i] = new List<string>();
+                int bucketIndex = GetBucketIndex(word, pos) + 1; // Индексация с 1 (для пустых строк 0)
+                counts[bucketIndex]++;
             }
 
-            // Распределяем слова по "ведрам" на основе текущего символа
-            foreach (var word in words)
+            // Построение префиксных сумм
+            for (int i = 1; i < counts.Length; i++)
             {
-                if (pos < word.Length)
-                {
-                    char currentChar = char.ToLower(word[pos]); // Приводим к нижнему регистру
-                    if (currentChar >= 'a' && currentChar <= 'z')
-                    {
-                        int bucketIndex = currentChar - 'a';
-                        buckets[bucketIndex].Add(word);
-                    }
-                    else
-                    {
-                        // Если символ не в диапазоне a-z, добавляем в последнее "ведро"
-                        buckets[26].Add(word);
-                    }
-                }
-                else
-                {
-                    buckets[0].Add(word); // Слова, длина которых меньше текущей позиции
-                }
+                counts[i] += counts[i - 1];
             }
 
-            // Собираем слова из "ведер"
-            words = buckets.SelectMany(bucket => bucket).ToList();
+            // Распределение слов по bucket'ам
+            for (int i = buffer1.Length - 1; i >= 0; i--)
+            {
+                int bucketIndex = GetBucketIndex(buffer1[i], pos) + 1;
+                buffer2[--counts[bucketIndex]] = buffer1[i];
+            }
+
+            // Обмен буферов
+            (buffer1, buffer2) = (buffer2, buffer1);
         }
 
-        return words;
+        // Возвращаем результат в виде List<string>
+        return new List<string>(buffer1);
+    }
+
+    private int GetBucketIndex(string word, int pos)
+    {
+        if (pos >= word.Length) return -1; // Пустой символ -> индекс 0
+        char currentChar = word[pos];
+        return currentChar switch
+        {
+            >= 'a' and <= 'z' => currentChar - 'a', // Индекс буквы
+            _ => 26                                 // Прочие символы
+        };
     }
 }

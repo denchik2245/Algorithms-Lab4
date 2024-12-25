@@ -1154,7 +1154,7 @@ namespace WPF1
             else
                 return "раз";
         }
-        
+
         private void StartSortingExperiments()
         {
             var fileSizes = new List<int> { 100, 500, 1000, 2000, 5000, 10000, 20000 };
@@ -1173,36 +1173,50 @@ namespace WPF1
                 try
                 {
                     var words = new WordSorter(new QuickSortSorter()).ReadWordsFromFile(filePath);
-                    
-                    var quickSortSorter = new QuickSortSorter();
-                    var stopwatchQuick = Stopwatch.StartNew();
-                    var quickSorted = quickSortSorter.Sort(new List<string>(words));
-                    stopwatchQuick.Stop();
-                    double quickSortTime = stopwatchQuick.Elapsed.TotalSeconds;
-                    
-                    var radixSortSorter = new RadixSortSorter();
-                    var stopwatchRadix = Stopwatch.StartNew();
-                    var radixSorted = radixSortSorter.Sort(new List<string>(words));
-                    stopwatchRadix.Stop();
-                    double radixSortTime = stopwatchRadix.Elapsed.TotalSeconds;
-                    
-                    results.Add((size, quickSortTime, radixSortTime));
+
+                    double quickSortTotalTime = 0;
+                    double radixSortTotalTime = 0;
+                    const int iterations = 50;
+
+                    for (int i = 0; i < iterations; i++)
+                    {
+                        // Измерение времени для RadixSort
+                        var radixSortSorter = new RadixSortSorter();
+                        var stopwatchRadix = Stopwatch.StartNew();
+                        var radixSorted = radixSortSorter.Sort(new List<string>(words));
+                        stopwatchRadix.Stop();
+                        radixSortTotalTime += stopwatchRadix.Elapsed.TotalSeconds;
+
+                        // Измерение времени для QuickSort
+                        var quickSortSorter = new QuickSortSorter();
+                        var stopwatchQuick = Stopwatch.StartNew();
+                        var quickSorted = quickSortSorter.Sort(new List<string>(words));
+                        stopwatchQuick.Stop();
+                        quickSortTotalTime += stopwatchQuick.Elapsed.TotalSeconds;
+                    }
+
+                    // Рассчитываем среднее время
+                    double quickSortAvgTime = quickSortTotalTime / iterations;
+                    double radixSortAvgTime = radixSortTotalTime / iterations;
+
+                    results.Add((size, quickSortAvgTime, radixSortAvgTime));
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Ошибка при обработке файла {filePath}: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-            
+
+            // Создание таблицы с результатами
             var tableBuilder = new StringBuilder();
             tableBuilder.AppendLine(string.Format("{0,-20} {1,-25} {2,-25}", "Количество слов", "QuickSort (сек)", "RadixSort (сек)"));
             tableBuilder.AppendLine(new string('-', 70));
 
             foreach (var result in results)
             {
-                tableBuilder.AppendLine(string.Format("{0,-20} {1,-25:F4} {2,-25:F4}", result.WordCount, result.QuickSortTime, result.RadixSortTime));
+                tableBuilder.AppendLine(string.Format("{0,-20} {1,-25:F5} {2,-25:F5}", result.WordCount, result.QuickSortTime, result.RadixSortTime));
             }
-            
+
             Table2.Text = tableBuilder.ToString();
             Table2.Visibility = Visibility.Visible;
         }
